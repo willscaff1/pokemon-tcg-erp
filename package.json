@@ -1,0 +1,22 @@
+{
+  "name": "pokemon-tcg-erp",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Sistema local para estoque, compras, vendas, faturamento e lucro de produtos variados.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "keywords": [
+    "erp",
+    "estoque",
+    "compras",
+    "vendas",
+    "railway"
+  ],
+  "license": "MIT"
+}

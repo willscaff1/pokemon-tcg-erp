@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Loja ERP</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="ball"></div>
+        <div>
+          <strong>Loja ERP</strong>
+          <span>Estoque, compras, vendas e lucro</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav active" data-tab="dashboard">Dashboard</button>
+        <button class="nav" data-tab="products">Produtos</button>
+        <button class="nav" data-tab="suppliers">Fornecedores</button>
+        <button class="nav" data-tab="purchase">Compras</button>
+        <button class="nav" data-tab="history">Historico</button>
+      </nav>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <h1 id="pageTitle">Dashboard</h1>
+          <p id="pageSubtitle">Controle local para produtos variados.</p>
+        </div>
+      </header>
+
+      <section class="tab visible" id="dashboard">
+        <div class="cards">
+          <article class="metric">
+            <span>Faturamento</span>
+            <strong id="revenue">R$ 0,00</strong>
+          </article>
+          <article class="metric">
+            <span>Lucro bruto</span>
+            <strong id="profit">R$ 0,00</strong>
+          </article>
+          <article class="metric">
+            <span>Estoque a custo</span>
+            <strong id="stockValue">R$ 0,00</strong>
+          </article>
+          <article class="metric">
+            <span>Unidades</span>
+            <strong id="stockUnits">0</strong>
+          </article>
+        </div>
+
+        <div class="layout two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Estoque baixo</h2>
+            </div>
+            <div id="lowStock" class="stack"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Ultimas vendas</h2>
+            </div>
+            <div id="recentSales" class="stack"></div>
+          </section>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Relatorio de vendas</h2>
+          </div>
+          <div id="salesReport" class="report-grid"></div>
+          <div id="salesReportRows" class="stack"></div>
+        </section>
+      </section>
+
+      <section class="tab" id="products">
+        <div class="page-actions">
+          <button class="primary" id="openProductModal" type="button">Novo produto</button>
+          <button id="openImportSpreadsheet" type="button">Importar planilha</button>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head split">
+            <h2>Produtos</h2>
+            <div class="product-filters">
+              <input id="productSearch" class="search" placeholder="Buscar por SKU, nome ou fornecedor">
+              <select id="categoryFilter">
+                <option value="">Todas categorias</option>
+              </select>
+              <select id="productSort">
+                <option value="name-asc">Nome A-Z</option>
+                <option value="cost-asc">Menor preco</option>
+                <option value="cost-desc">Maior preco</option>
+                <option value="stock-asc">Menor estoque</option>
+                <option value="stock-desc">Maior estoque</option>
+              </select>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>Fornecedor</th>
+                  <th>Estoque</th>
+                  <th>Custo</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="productsTable"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+
+      <section class="tab" id="suppliers">
+        <div class="page-actions">
+          <button class="primary" id="openSupplierModal" type="button">Novo fornecedor</button>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head split">
+            <h2>Fornecedores</h2>
+            <input id="supplierSearch" class="search" placeholder="Buscar por nome, contato, mercado ou documento">
+          </div>
+          <div id="suppliersList" class="stack"></div>
+        </section>
+      </section>
+
+      <section class="tab" id="purchase">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Registrar compra</h2>
+          </div>
+          <form id="purchaseForm" class="form">
+            <div class="grid-form compact">
+              <label>Data<input name="date" type="date"></label>
+              <label>Fornecedor<input name="supplier" list="supplierOptions" placeholder="Fornecedor, distribuidora ou importador"></label>
+              <label>NF / Pedido<input name="invoice"></label>
+              <label>Frete, imposto e taxas<input name="extraCosts" type="number" min="0" step="0.01" value="0"></label>
+            </div>
+            <div id="purchaseItems" class="items"></div>
+            <button type="button" id="addPurchaseItem">Adicionar item</button>
+            <label>Observacoes<textarea name="notes" rows="3"></textarea></label>
+            <div class="total-line">Total da compra: <strong id="purchaseTotal">R$ 0,00</strong></div>
+            <button class="primary" type="submit">Lancar compra</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="tab" id="sale">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Registrar venda</h2>
+          </div>
+          <form id="saleForm" class="form">
+            <div class="grid-form compact">
+              <label>Data<input name="date" type="date"></label>
+              <label>Cliente<input name="customer" placeholder="Cliente ou loja"></label>
+              <label>Canal
+                <select name="channel">
+                  <option>Balcao</option>
+                  <option>LigaPokemon</option>
+                  <option>Mercado Livre</option>
+                  <option>Shopee</option>
+                  <option>WhatsApp</option>
+                  <option>Site proprio</option>
+                  <option>Loja fisica</option>
+                  <option>Instagram</option>
+                  <option>Amazon</option>
+                  <option>Atacado</option>
+                </select>
+              </label>
+              <label>Status
+                <select name="paymentStatus">
+                  <option>Pago</option>
+                  <option>Pendente</option>
+                  <option>Cancelado</option>
+                </select>
+              </label>
+              <label>Pagamento<input name="paymentMethod" placeholder="PIX, cartao, boleto..."></label>
+              <label>Desconto<input name="discount" type="number" min="0" step="0.01" value="0"></label>
+              <label>Frete cobrado<input name="shippingCharged" type="number" min="0" step="0.01" value="0"></label>
+              <label>Taxas/marketplace<input name="fees" type="number" min="0" step="0.01" value="0"></label>
+            </div>
+            <div id="saleItems" class="items"></div>
+            <button type="button" id="addSaleItem">Adicionar item</button>
+            <label>Observacoes<textarea name="notes" rows="3"></textarea></label>
+            <div class="total-line">Venda: <strong id="saleTotal">R$ 0,00</strong> | Lucro estimado: <strong id="saleProfit">R$ 0,00</strong></div>
+            <button class="primary" type="submit">Lancar venda</button>
+          </form>
+        </section>
+      </section>
+
+      <section class="tab" id="history">
+        <div class="layout two">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Compras</h2>
+            </div>
+            <div id="purchaseHistory" class="stack"></div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Vendas</h2>
+            </div>
+            <div id="saleHistory" class="stack"></div>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Movimentacoes de estoque</h2>
+          </div>
+          <div id="movementHistory" class="stack"></div>
+        </section>
+      </section>
+    </main>
+  </div>
+
+  <datalist id="supplierOptions"></datalist>
+  <div id="productModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-product></div>
+    <section class="modal-panel product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
+      <div class="panel-head split">
+        <div>
+          <h2 id="productModalTitle">Novo produto</h2>
+          <p class="muted">O SKU sera gerado automaticamente.</p>
+        </div>
+        <button type="button" data-close-product>Fechar</button>
+      </div>
+      <form id="productForm" class="form">
+        <input type="hidden" name="id">
+        <div class="product-form-grid">
+          <label class="field-large">Nome do produto
+            <input name="name" required placeholder="Ex: Box Pokemon Mega Charizard Y">
+          </label>
+          <label class="field-large">Fornecedor
+            <select name="supplier" id="productSupplierSelect"></select>
+          </label>
+          <label>Categoria
+            <span class="field-with-action">
+              <select name="category" id="productCategorySelect"></select>
+              <button id="addCategoryBtn" class="small-icon-btn" type="button" title="Nova categoria">+</button>
+            </span>
+          </label>
+          <label>Custo
+            <input class="money-input" name="costAvg" type="text" inputmode="decimal" placeholder="R$ 0,00">
+          </label>
+          <label>Estoque
+            <input name="stock" type="number" min="0" step="1" placeholder="0">
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="primary" type="submit">Salvar produto</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="supplierModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-supplier></div>
+    <section class="modal-panel product-modal-panel" role="dialog" aria-modal="true" aria-labelledby="supplierModalTitle">
+      <div class="panel-head split">
+        <div>
+          <h2 id="supplierModalTitle">Novo fornecedor</h2>
+          <p class="muted">Cadastre os dados principais para usar no produto e nas compras.</p>
+        </div>
+        <button type="button" data-close-supplier>Fechar</button>
+      </div>
+      <form id="supplierForm" class="form">
+        <input type="hidden" name="id">
+        <div class="supplier-form-grid">
+          <label class="field-large">Nome
+            <input name="name" required placeholder="Fornecedor ou distribuidora">
+          </label>
+          <label>Mercado
+            <select name="market">
+              <option>Brasil</option>
+              <option>EUA</option>
+              <option>Internacional</option>
+            </select>
+          </label>
+          <label>Tipo
+            <select name="kind">
+              <option>Candidato</option>
+              <option>Oficial</option>
+              <option>Marketplace</option>
+              <option>Importador</option>
+              <option>Distribuidor</option>
+            </select>
+          </label>
+          <label>CNPJ / Documento
+            <input name="document" placeholder="CNPJ, IE ou registro">
+          </label>
+          <label>Contato
+            <input name="contact" placeholder="Pessoa ou setor">
+          </label>
+          <label>E-mail
+            <input name="email" type="email" placeholder="contato@empresa.com">
+          </label>
+          <label>Telefone
+            <input name="phone" placeholder="WhatsApp ou telefone">
+          </label>
+          <label>Site
+            <input name="website" placeholder="https://">
+          </label>
+          <label>Score
+            <input name="score" type="number" min="0" max="100" step="1" value="0">
+          </label>
+          <label class="wide">Observacoes
+            <textarea name="notes" rows="3"></textarea>
+          </label>
+        </div>
+        <div class="form-actions">
+          <button class="primary" type="submit">Salvar fornecedor</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <div id="quickSaleModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-sale></div>
+    <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="quickSaleTitle">
+      <div class="panel-head split">
+        <div>
+          <h2 id="quickSaleTitle">Vender produto</h2>
+          <p id="quickSaleProductInfo" class="muted"></p>
+        </div>
+        <button type="button" data-close-sale>Fechar</button>
+      </div>
+      <form id="quickSaleForm" class="form">
+        <input type="hidden" name="productId">
+        <div class="grid-form compact">
+          <label>Data<input name="date" type="date"></label>
+          <label>Quantidade<input name="quantity" type="number" min="1" step="1" value="1"></label>
+          <label>Valor da venda<input name="unitPrice" type="number" min="0" step="0.01" required></label>
+          <label>Taxas<input name="fees" type="number" min="0" step="0.01" value="0"></label>
+          <label>Cliente<input name="customer" placeholder="Cliente"></label>
+          <label>Canal
+            <select name="channel">
+              <option>Balcao</option>
+              <option>WhatsApp</option>
+              <option>Instagram</option>
+              <option>Mercado Livre</option>
+              <option>Shopee</option>
+              <option>Site proprio</option>
+              <option>Loja fisica</option>
+              <option>Atacado</option>
+            </select>
+          </label>
+          <label>Pagamento<input name="paymentMethod" placeholder="PIX, cartao, dinheiro..."></label>
+          <label>Desconto<input name="discount" type="number" min="0" step="0.01" value="0"></label>
+        </div>
+        <label>Observacoes<textarea name="notes" rows="3"></textarea></label>
+        <div class="total-line">
+          Venda: <strong id="quickSaleTotal">R$ 0,00</strong>
+          Lucro: <strong id="quickSaleProfit">R$ 0,00</strong>
+          Margem: <strong id="quickSaleMargin">0%</strong>
+        </div>
+        <button class="primary" type="submit">Confirmar venda</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="spreadsheetModal" class="modal" aria-hidden="true">
+    <div class="modal-backdrop" data-close-import></div>
+    <section class="modal-panel compact-modal" role="dialog" aria-modal="true" aria-labelledby="spreadsheetTitle">
+      <div class="panel-head split">
+        <div>
+          <h2 id="spreadsheetTitle">Importar planilha</h2>
+          <p class="muted">Use Produto e Pago. Vendido, Quantidade, SKU, Fornecedor e Categoria sao opcionais.</p>
+        </div>
+        <button type="button" data-close-import>Fechar</button>
+      </div>
+      <div class="form">
+        <div class="grid-form compact">
+          <label>Arquivo XLSX ou CSV
+            <input id="spreadsheetFile" type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv">
+          </label>
+          <label class="check-label">
+            <input id="replaceStock" type="checkbox" checked>
+            Substituir estoque atual
+          </label>
+        </div>
+        <div class="import-help">
+          Lucro e Lucro% ficam fora da planilha: o sistema calcula automaticamente pelas vendas.
+        </div>
+        <div class="form-actions">
+          <button type="button" id="previewSpreadsheet">Gerar previa</button>
+          <button class="primary" type="button" id="applySpreadsheet" disabled>Confirmar importacao</button>
+        </div>
+        <div id="spreadsheetPreview" class="import-preview"></div>
+      </div>
+    </section>
+  </div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/app.js"></script>
+</body>
+</html>
