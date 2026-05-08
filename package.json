@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "migrate:postgres": "node scripts/migrate-json-to-postgres.js"
   },
   "engines": {
     "node": ">=18"
@@ -18,5 +19,8 @@
     "vendas",
     "railway"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "pg": "^8.20.0"
+  }
 }

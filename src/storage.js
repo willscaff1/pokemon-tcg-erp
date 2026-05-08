@@ -1,5 +1,9 @@
 const fs = require("fs");
 const path = require("path");
+const { Pool } = require("pg");
+
+let pgPool = null;
+let pgReady = false;
 
 const now = () => new Date().toISOString();
 const defaultCategories = [
@@ -37,20 +41,32 @@ function resolveDataFile() {
   return path.resolve(process.cwd(), process.env.DATA_FILE || "./data/db.json");
 }
 
-function readDb() {
-  const file = resolveDataFile();
-  ensureDir(file);
+function usePostgres() {
+  return Boolean(process.env.DATABASE_URL);
+}
 
-  if (!fs.existsSync(file)) {
-    const db = initialDb();
-    writeDb(db);
-    return db;
+async function getPgPool() {
+  if (!usePostgres()) return null;
+  if (!pgPool) {
+    pgPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false }
+    });
   }
+  if (!pgReady) {
+    await pgPool.query(`
+      CREATE TABLE IF NOT EXISTS app_state (
+        id integer PRIMARY KEY,
+        data jsonb NOT NULL,
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `);
+    pgReady = true;
+  }
+  return pgPool;
+}
 
-  const raw = fs.readFileSync(file, "utf8").trim();
-  if (!raw) return initialDb();
-
-  const db = JSON.parse(raw);
+function normalizeDb(db = {}) {
   return {
     ...initialDb(),
     ...db,
@@ -64,9 +80,40 @@ function readDb() {
   };
 }
 
-function writeDb(db) {
+async function readDb() {
+  const pool = await getPgPool();
+  if (pool) {
+    const result = await pool.query("SELECT data FROM app_state WHERE id = 1");
+    if (result.rows[0]) return normalizeDb(result.rows[0].data);
+
+    const localFile = resolveDataFile();
+    let db = initialDb();
+    if (fs.existsSync(localFile)) {
+      const raw = fs.readFileSync(localFile, "utf8").trim();
+      if (raw) db = JSON.parse(raw);
+    }
+    await writeDb(db);
+    return normalizeDb(db);
+  }
+
   const file = resolveDataFile();
   ensureDir(file);
+
+  if (!fs.existsSync(file)) {
+    const db = initialDb();
+    await writeDb(db);
+    return db;
+  }
+
+  const raw = fs.readFileSync(file, "utf8").trim();
+  if (!raw) return initialDb();
+
+  return normalizeDb(JSON.parse(raw));
+}
+
+async function writeDb(db) {
+  const pool = await getPgPool();
+  const file = resolveDataFile();
   const next = {
     ...db,
     meta: {
@@ -76,6 +123,18 @@ function writeDb(db) {
       updatedAt: now()
     }
   };
+
+  if (pool) {
+    await pool.query(
+      `INSERT INTO app_state (id, data, updated_at)
+       VALUES (1, $1::jsonb, now())
+       ON CONFLICT (id) DO UPDATE SET data = EXCLUDED.data, updated_at = now()`,
+      [JSON.stringify(next)]
+    );
+    return next;
+  }
+
+  ensureDir(file);
   const tempFile = `${file}.tmp`;
   fs.writeFileSync(tempFile, JSON.stringify(next, null, 2));
   fs.renameSync(tempFile, file);
@@ -125,8 +184,8 @@ function getProduct(db, productId) {
   return db.products.find((product) => product.id === productId);
 }
 
-function getCategories() {
-  const db = readDb();
+async function getCategories() {
+  const db = await readDb();
   const categories = new Set(defaultCategories);
   for (const category of db.categories || []) {
     const name = String(category || "").trim();
@@ -139,32 +198,32 @@ function getCategories() {
   return [...categories].sort((a, b) => a.localeCompare(b));
 }
 
-function addCategory(input) {
-  const db = readDb();
+async function addCategory(input) {
+  const db = await readDb();
   const name = String(input.name || input.category || "").trim();
   if (!name) {
-    const error = new Error("Nome da categoria e obrigatorio.");
+    const error = new Error("Nome da categoria é obrigatório.");
     error.status = 400;
     throw error;
   }
 
-  const exists = getCategories().some((category) => normalizeKey(category) === normalizeKey(name));
+  const exists = (await getCategories()).some((category) => normalizeKey(category) === normalizeKey(name));
   if (!exists) {
     db.categories = [...(db.categories || []), name].sort((a, b) => a.localeCompare(b));
-    writeDb(db);
+    await writeDb(db);
   }
 
   return { name };
 }
 
-function upsertSupplier(input) {
-  const db = readDb();
+async function upsertSupplier(input) {
+  const db = await readDb();
   const id = input.id || createId("sup");
   const existing = db.suppliers.find((supplier) => supplier.id === id);
   const name = String(input.name || "").trim();
 
   if (!name) {
-    const error = new Error("Nome do fornecedor e obrigatorio.");
+    const error = new Error("Nome do fornecedor é obrigatório.");
     error.status = 400;
     throw error;
   }
@@ -173,7 +232,7 @@ function upsertSupplier(input) {
     (supplier) => supplier.name.toLowerCase() === name.toLowerCase() && supplier.id !== id
   );
   if (duplicated) {
-    const error = new Error("Ja existe fornecedor com este nome.");
+    const error = new Error("Já existe fornecedor com este nome.");
     error.status = 400;
     throw error;
   }
@@ -201,33 +260,33 @@ function upsertSupplier(input) {
     db.suppliers.push(supplier);
   }
 
-  writeDb(db);
+  await writeDb(db);
   return supplier;
 }
 
-function deleteSupplier(id) {
-  const db = readDb();
+async function deleteSupplier(id) {
+  const db = await readDb();
   const supplier = db.suppliers.find((item) => item.id === id);
   if (!supplier) {
-    const error = new Error("Fornecedor nao encontrado.");
+    const error = new Error("Fornecedor não encontrado.");
     error.status = 404;
     throw error;
   }
   supplier.active = false;
   supplier.updatedAt = now();
-  writeDb(db);
+  await writeDb(db);
   return supplier;
 }
 
-function upsertProduct(input) {
-  const db = readDb();
+async function upsertProduct(input) {
+  const db = await readDb();
   const id = input.id || createId("prd");
   const existing = db.products.find((product) => product.id === id);
   const name = String(input.name || "").trim();
   const skuInput = String(input.sku || "").trim();
 
   if (!name) {
-    const error = new Error("Nome do produto e obrigatorio.");
+    const error = new Error("Nome do produto é obrigatório.");
     error.status = 400;
     throw error;
   }
@@ -237,7 +296,7 @@ function upsertProduct(input) {
   if (sku) {
     const duplicatedSku = db.products.find((product) => product.sku === sku && product.id !== id);
     if (duplicatedSku) {
-      const error = new Error("Ja existe produto com este SKU.");
+      const error = new Error("Já existe produto com este SKU.");
       error.status = 400;
       throw error;
     }
@@ -250,6 +309,7 @@ function upsertProduct(input) {
     category: String(input.category || "Produto").trim(),
     language: String(input.language || "N/A").trim(),
     supplier: String(input.supplier || "").trim(),
+    imageDataUrl: String(input.imageDataUrl || existing?.imageDataUrl || "").trim(),
     salePrice: input.salePrice !== undefined && input.salePrice !== "" ? clampMoney(input.salePrice) : clampMoney(existing?.salePrice),
     costAvg: clampMoney(input.costAvg),
     stock: Math.max(0, toNumber(input.stock)),
@@ -265,21 +325,21 @@ function upsertProduct(input) {
     db.products.push(product);
   }
 
-  writeDb(db);
+  await writeDb(db);
   return product;
 }
 
-function deleteProduct(id) {
-  const db = readDb();
+async function deleteProduct(id) {
+  const db = await readDb();
   const product = getProduct(db, id);
   if (!product) {
-    const error = new Error("Produto nao encontrado.");
+    const error = new Error("Produto não encontrado.");
     error.status = 404;
     throw error;
   }
   product.active = false;
   product.updatedAt = now();
-  writeDb(db);
+  await writeDb(db);
   return product;
 }
 
@@ -295,8 +355,8 @@ function findProductForImport(db, item) {
   return db.products.find((product) => normalizeKey(product.name) === name && normalizeKey(product.language || "N/A") === language);
 }
 
-function planProductImport(items, options = {}) {
-  const db = readDb();
+async function planProductImport(items, options = {}) {
+  const db = await readDb();
   const replaceStock = options.replaceStock !== false;
   const planned = [];
   const errors = [];
@@ -304,7 +364,7 @@ function planProductImport(items, options = {}) {
   for (const item of Array.isArray(items) ? items : []) {
     const name = String(item.name || "").trim();
     if (!name) {
-      errors.push("Produto sem nome encontrado na importacao.");
+      errors.push("Produto sem nome encontrado na importação.");
       continue;
     }
 
@@ -341,8 +401,8 @@ function planProductImport(items, options = {}) {
   };
 }
 
-function importProductsFromSpreadsheet(items, options = {}) {
-  const db = readDb();
+async function importProductsFromSpreadsheet(items, options = {}) {
+  const db = await readDb();
   const replaceStock = options.replaceStock !== false;
   const date = new Date().toISOString().slice(0, 10);
   const imported = [];
@@ -383,13 +443,13 @@ function importProductsFromSpreadsheet(items, options = {}) {
       db.movements.push({
         id: createId("mov"),
         date,
-        type: "IMPORTACAO",
+        type: "IMPORTAÇÃO",
         productId: id,
         productName: name,
         quantity: delta,
         unitCost: product.costAvg,
         referenceId: "spreadsheet",
-        note: replaceStock ? "Estoque substituido por planilha" : "Estoque somado por planilha"
+        note: replaceStock ? "Estoque substituído por planilha" : "Estoque somado por planilha"
       });
     }
 
@@ -402,7 +462,7 @@ function importProductsFromSpreadsheet(items, options = {}) {
     });
   }
 
-  writeDb(db);
+  await writeDb(db);
   return {
     ok: true,
     replaceStock,
@@ -413,8 +473,8 @@ function importProductsFromSpreadsheet(items, options = {}) {
   };
 }
 
-function createPurchase(input) {
-  const db = readDb();
+async function createPurchase(input) {
+  const db = await readDb();
   const items = Array.isArray(input.items) ? input.items : [];
   const cleanItems = items
     .map((item) => ({
@@ -439,7 +499,7 @@ function createPurchase(input) {
   const finalItems = cleanItems.map((item) => {
     const product = getProduct(db, item.productId);
     if (!product) {
-      const error = new Error("Produto da compra nao encontrado.");
+      const error = new Error("Produto da compra não encontrado.");
       error.status = 400;
       throw error;
     }
@@ -493,12 +553,12 @@ function createPurchase(input) {
   };
 
   db.purchases.unshift(purchase);
-  writeDb(db);
+  await writeDb(db);
   return purchase;
 }
 
-function createSale(input) {
-  const db = readDb();
+async function createSale(input) {
+  const db = await readDb();
   const items = Array.isArray(input.items) ? input.items : [];
   const cleanItems = items
     .map((item) => ({
@@ -517,7 +577,7 @@ function createSale(input) {
   for (const item of cleanItems) {
     const product = getProduct(db, item.productId);
     if (!product) {
-      const error = new Error("Produto da venda nao encontrado.");
+      const error = new Error("Produto da venda não encontrado.");
       error.status = 400;
       throw error;
     }
@@ -570,7 +630,7 @@ function createSale(input) {
     id: saleId,
     date,
     customer: String(input.customer || "").trim(),
-    channel: String(input.channel || "Balcao").trim(),
+    channel: String(input.channel || "Balcão").trim(),
     paymentMethod: String(input.paymentMethod || "").trim(),
     paymentStatus: String(input.paymentStatus || "Pago").trim(),
     notes: String(input.notes || "").trim(),
@@ -587,12 +647,12 @@ function createSale(input) {
   };
 
   db.sales.unshift(sale);
-  writeDb(db);
+  await writeDb(db);
   return sale;
 }
 
-function getSummary() {
-  const db = readDb();
+async function getSummary() {
+  const db = await readDb();
   const activeProducts = db.products.filter((product) => product.active !== false);
   const activeSuppliers = db.suppliers.filter((supplier) => supplier.active !== false);
   const totalStockUnits = activeProducts.reduce((sum, product) => sum + toNumber(product.stock), 0);

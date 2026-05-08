@@ -1,36 +1,38 @@
-# Loja ERP
+# Scaff TCG
 
-Sistema local para controlar estoque, compras, vendas, faturamento e lucro de produtos variados. A interface pode manter um tema visual inspirado em Pokemon, mas a operacao nao fica limitada a TCG.
+Sistema para controlar estoque, compras, vendas, faturamento e lucro de produtos variados. A interface pode manter um tema visual inspirado em Pokémon, mas a operação não fica limitada a TCG.
 
-## O que ja faz
+## O que já faz
 
-- Cadastro de produtos com SKU, variacao, fornecedor, categoria, preco de venda, custo medio e estoque minimo.
-- Lancamento de compras com frete/impostos/taxas rateados no custo medio.
-- Lancamento de vendas com baixa de estoque, taxas, desconto, frete cobrado, faturamento e lucro.
+- Cadastro de produtos com foto, SKU, variação, fornecedor, categoria, preço de compra, preço de venda, custo médio, margem e estoque mínimo.
+- Lançamento de compras com frete, impostos e taxas rateados no custo médio.
+- Lançamento de vendas com baixa de estoque, taxas, desconto, frete cobrado, preço real da venda, faturamento e lucro.
 - Dashboard com faturamento, lucro, valor do estoque a custo, unidades e estoque baixo.
-- Historico de compras, vendas e movimentacoes.
-- Importacao de estoque por planilha `.xlsx` ou `.csv`, com previa antes de gravar.
-- Backup/exportacao e importacao em JSON.
-- Sem banco externo por enquanto: os dados ficam em `data/db.json`.
+- Tela de projeção com média de margem e faturamento estimado caso venda todo o estoque.
+- Histórico de compras, vendas e movimentações.
+- Relatório em PDF para cliente com logo, foto do produto, nome e preço de venda.
+- Importação de estoque por planilha `.xlsx` ou `.csv`, com prévia antes de gravar.
+- Backup/exportação e importação em JSON.
+- Banco local em JSON ou Postgres quando `DATABASE_URL` estiver configurada.
 
-## Padrao de planilha para importar estoque
+## Padrão de planilha para importar estoque
 
-O importador reconhece estes cabecalhos:
+O importador reconhece estes cabeçalhos:
 
 ```text
 Produto | Pago | Vendido | Quantidade | SKU | Fornecedor | Categoria
 ```
 
-Obrigatorios: `Produto` e `Pago`.
+Obrigatórios: `Produto` e `Pago`.
 
 Regras:
 
-- Se nao existir coluna `Quantidade`, cada linha valida vale 1 unidade.
-- Linhas repetidas com o mesmo produto sao agrupadas automaticamente.
-- `Pago` vira custo medio do produto.
-- `Vendido` vira preco de venda quando estiver preenchido.
-- `Lucro` e `Lucro%` nao devem ser importados; o sistema calcula esses valores a partir das vendas lancadas.
-- Antes de gravar, o sistema mostra uma previa com produtos criados, produtos atualizados, avisos e erros.
+- Se não existir coluna `Quantidade`, cada linha válida vale 1 unidade.
+- Linhas repetidas com o mesmo produto são agrupadas automaticamente.
+- `Pago` vira custo médio do produto.
+- `Vendido` vira preço de venda quando estiver preenchido.
+- `Lucro` e `Lucro%` não devem ser importados; o sistema calcula esses valores a partir das vendas lançadas.
+- Antes de gravar, o sistema mostra uma prévia com produtos criados, produtos atualizados, avisos e erros.
 
 ## Como rodar local
 
@@ -48,10 +50,11 @@ Depois abra:
 http://localhost:3000
 ```
 
-Tambem funciona pelo terminal:
+Também funciona pelo terminal:
 
 ```bash
 cd pokemon-tcg-erp
+npm install
 npm start
 ```
 
@@ -61,56 +64,66 @@ Abra:
 http://localhost:3000
 ```
 
-Nao precisa instalar dependencias nesta versao.
-
-O banco local fica em `data/db.json`. Ele foi mantido no projeto para continuar com o mesmo estoque no proximo uso. O arquivo `.env` nao deve ir para o GitHub.
+O banco local fica em `data/db.json`. O arquivo `.env` não deve ir para o GitHub.
 
 ## Estrutura
 
 ```text
 server.js            API HTTP e arquivos estaticos
-src/storage.js       Camada de dados local
+src/storage.js       Camada de dados local/Postgres
 public/index.html    Interface
 public/styles.css    Layout
 public/app.js        Regras da tela
 data/db.json         Banco local criado automaticamente
 ```
 
-## Preparado para Git
-
-O arquivo `data/db.json` fica no `.gitignore`, porque contem dados da sua operacao. Para subir o codigo:
-
-```bash
-git init
-git add .
-git commit -m "Initial local Loja ERP"
-```
-
 ## Preparado para Railway
 
-Esta versao roda como app Node simples:
+Esta versão roda como app Node simples:
 
 ```bash
 npm start
 ```
 
-Variaveis suportadas:
+Variáveis suportadas:
 
 ```text
 PORT=3000
 DATA_FILE=./data/db.json
+DATABASE_URL=postgresql://...
+PGSSLMODE=require
 APP_USER=admin
 APP_PASSWORD=sua-senha-forte
 ```
 
-Se `APP_PASSWORD` estiver preenchida, o sistema pede login via Basic Auth. Nao publique sem senha.
+Se `APP_PASSWORD` estiver preenchida, o sistema pede login via Basic Auth. Não publique sem senha.
 
-Observacao importante: em deploy cloud, arquivo local pode ser efemero. Para producao no Railway, o proximo passo recomendado e trocar a camada `src/storage.js` por Postgres ou configurar volume persistente. A interface e a API ja estao separadas para facilitar essa troca.
+Quando `DATABASE_URL` existe, o sistema grava os dados no Postgres. Se não existir, grava no `data/db.json` local.
 
-## Proximos passos recomendados
+## Migrar dados para Postgres
 
-- Login de usuario/admin antes de publicar.
-- Banco Postgres para producao.
-- Relatorio por periodo, canal e fornecedor.
-- Modulo de contas a pagar/receber.
-- Emissao fiscal real exige integracao com sistema fiscal/NF-e/NFC-e homologado.
+Depois de criar ou conectar o Postgres no Railway, rode a migração apontando para a mesma `DATABASE_URL`:
+
+```bash
+npm run migrate:postgres
+```
+
+Se o projeto já estiver linkado no Railway CLI, rode:
+
+```bash
+railway run npm run migrate:postgres
+```
+
+O comando lê `data/db.json` e grava tudo na tabela `app_state` do Postgres. Para usar outro arquivo de origem:
+
+```text
+MIGRATION_DATA_FILE=./caminho/do/backup.json
+```
+
+Em deploy cloud, arquivo local pode ser efêmero. Para produção no Railway, use Postgres.
+
+## Próximos passos recomendados
+
+- Relatório por período, canal e fornecedor.
+- Módulo de contas a pagar/receber.
+- Emissão fiscal real exige integração com sistema fiscal/NF-e/NFC-e homologado.

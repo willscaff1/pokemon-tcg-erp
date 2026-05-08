@@ -6,6 +6,7 @@ const state = {
   sales: [],
   movements: [],
   summary: {},
+  settings: {},
   spreadsheetImport: null
 };
 
@@ -13,6 +14,16 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 
 function formatMoney(value) {
   return money.format(Number(value || 0));
+}
+
+function formatSalePrice(value) {
+  return Number(value || 0) > 0 ? formatMoney(value) : '<span class="muted">Não cadastrado</span>';
+}
+
+function productImageTag(product, sizeClass = "product-thumb") {
+  return product.imageDataUrl
+    ? `<img class="${sizeClass}" src="${product.imageDataUrl}" alt="">`
+    : `<span class="${sizeClass} placeholder"></span>`;
 }
 
 function parseMoneyInput(value) {
@@ -44,7 +55,7 @@ async function api(path, options = {}) {
     ...options
   });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.error || "Erro na requisicao.");
+  if (!response.ok) throw new Error(data.error || "Erro na requisição.");
   return data;
 }
 
@@ -56,9 +67,53 @@ function fileToBase64(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result).split(",")[1] || "");
-    reader.onerror = () => reject(new Error("Nao foi possivel ler o arquivo."));
+    reader.onerror = () => reject(new Error("Não foi possível ler o arquivo."));
     reader.readAsDataURL(file);
   });
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      const maxSize = 900;
+      const scale = Math.min(1, maxSize / Math.max(image.width, image.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(image.width * scale));
+      canvas.height = Math.max(1, Math.round(image.height * scale));
+      const context = canvas.getContext("2d");
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL("image/jpeg", 0.9));
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Não foi possível ler a imagem."));
+    };
+    image.src = url;
+  });
+}
+
+function saleMargin(cost, salePrice) {
+  const costNumber = Number(cost || 0);
+  const saleNumber = Number(salePrice || 0);
+  if (costNumber <= 0 || saleNumber <= 0) return "";
+  return Math.round(((saleNumber - costNumber) / costNumber) * 10000) / 100;
+}
+
+function formatMargin(cost, salePrice) {
+  const margin = saleMargin(cost, salePrice);
+  return margin === "" ? '<span class="muted">-</span>' : `${margin}%`;
+}
+
+function salePriceFromMargin(cost, marginPercent) {
+  const costNumber = Number(cost || 0);
+  const marginNumber = Number(marginPercent || 0);
+  if (costNumber <= 0 || !Number.isFinite(marginNumber)) return 0;
+  return Math.round(costNumber * (1 + marginNumber / 100) * 100) / 100;
 }
 
 function productOptions(selected = "") {
@@ -79,7 +134,7 @@ function selectedProduct(id) {
 
 function itemRow(type) {
   const priceName = type === "sale" ? "unitPrice" : "unitCost";
-  const priceLabel = type === "sale" ? "Preco unit." : "Custo unit.";
+  const priceLabel = type === "sale" ? "Preço unit." : "Custo unit.";
   return `
     <div class="item-row">
       <label>Produto
@@ -124,14 +179,15 @@ function collectItems(container, priceName) {
 }
 
 async function loadAll() {
-  const [summary, products, suppliers, categories, purchases, sales, movements] = await Promise.all([
+  const [summary, products, suppliers, categories, purchases, sales, movements, settings] = await Promise.all([
     api("/api/summary"),
     api("/api/products"),
     api("/api/suppliers"),
     api("/api/categories"),
     api("/api/purchases"),
     api("/api/sales"),
-    api("/api/movements")
+    api("/api/movements"),
+    api("/api/settings")
   ]);
   state.summary = summary;
   state.products = products;
@@ -140,12 +196,14 @@ async function loadAll() {
   state.purchases = purchases;
   state.sales = sales;
   state.movements = movements;
+  state.settings = settings;
   renderAll();
 }
 
 function renderAll() {
   renderDashboard();
   renderProducts();
+  renderProjection();
   renderSuppliers();
   renderHistories();
   renderSupplierOptions();
@@ -167,17 +225,17 @@ function renderDashboard() {
     ? state.summary.lowStock.map((product) => `
       <div class="row-card">
         <strong>${product.name}</strong>
-        <span>Estoque ${product.stock} | minimo ${product.minStock}</span>
+        <span>Estoque ${product.stock} | mínimo ${product.minStock}</span>
       </div>
     `).join("")
-    : '<div class="row-card"><strong>Nenhum produto abaixo do minimo.</strong><span>Cadastre estoque minimo para acompanhar reposicao.</span></div>';
+    : '<div class="row-card"><strong>Nenhum produto abaixo do mínimo.</strong><span>Cadastre estoque mínimo para acompanhar reposição.</span></div>';
 
   document.getElementById("recentSales").innerHTML = state.sales.slice(0, 6).map((sale) => `
     <div class="row-card">
-      <strong>${sale.customer || "Cliente"} - ${formatMoney(sale.netRevenue)}</strong>
+      <strong>${sale.customer || "Cliente"} - preço real ${formatMoney(sale.netRevenue)}</strong>
       <span>${sale.date} | ${sale.channel} | lucro ${formatMoney(sale.profit)} (${sale.margin}%)</span>
     </div>
-  `).join("") || '<div class="row-card"><strong>Nenhuma venda lancada.</strong><span>As ultimas vendas vao aparecer aqui.</span></div>';
+  `).join("") || '<div class="row-card"><strong>Nenhuma venda lançada.</strong><span>As últimas vendas vão aparecer aqui.</span></div>';
 
   renderSalesReport();
 }
@@ -204,19 +262,19 @@ function renderSalesReport() {
 
   document.getElementById("salesReport").innerHTML = `
     <div class="report-card"><span>Vendas</span><strong>${totalSales}</strong></div>
-    <div class="report-card"><span>Margem media</span><strong>${avgMargin}%</strong></div>
+    <div class="report-card"><span>Margem média</span><strong>${avgMargin}%</strong></div>
     <div class="report-card"><span>Lucro / faturamento</span><strong>${profitRate}%</strong></div>
-    <div class="report-card"><span>Ticket medio</span><strong>${formatMoney(calculateAverageTicket())}</strong></div>
+    <div class="report-card"><span>Ticket médio</span><strong>${formatMoney(calculateAverageTicket())}</strong></div>
     <div class="report-card"><span>Custo vendido</span><strong>${formatMoney(cost)}</strong></div>
     <div class="report-card"><span>Taxas</span><strong>${formatMoney(fees)}</strong></div>
   `;
 
   document.getElementById("salesReportRows").innerHTML = state.sales.slice(0, 10).map((sale) => `
     <div class="row-card">
-      <strong>${sale.date} | ${formatMoney(sale.netRevenue)} | margem ${sale.margin}%</strong>
-      <span>Lucro ${formatMoney(sale.profit)} | custo ${formatMoney(sale.costTotal)} | taxas ${formatMoney(sale.fees)} | ${sale.items.map((item) => item.productName).join(", ")}</span>
+      <strong>${sale.date} | preço real ${formatMoney(sale.netRevenue)} | margem ${sale.margin}%</strong>
+      <span>Lucro ${formatMoney(sale.profit)} | custo ${formatMoney(sale.costTotal)} | desconto ${formatMoney(sale.discount)} | taxas ${formatMoney(sale.fees)} | ${sale.items.map((item) => item.productName).join(", ")}</span>
     </div>
-  `).join("") || '<div class="row-card"><strong>Nenhuma venda para relatorio.</strong><span>Quando vender pelo botao Vender, os dados aparecem aqui.</span></div>';
+  `).join("") || '<div class="row-card"><strong>Nenhuma venda para relatório.</strong><span>Quando vender pelo botão Vender, os dados aparecem aqui.</span></div>';
 }
 
 function renderProducts() {
@@ -231,8 +289,8 @@ function renderProducts() {
   });
 
   products.sort((a, b) => {
-    if (sort === "cost-asc") return Number(a.costAvg || 0) - Number(b.costAvg || 0);
-    if (sort === "cost-desc") return Number(b.costAvg || 0) - Number(a.costAvg || 0);
+    if (sort === "cost-asc") return Number(a.salePrice || 0) - Number(b.salePrice || 0);
+    if (sort === "cost-desc") return Number(b.salePrice || 0) - Number(a.salePrice || 0);
     if (sort === "stock-asc") return Number(a.stock || 0) - Number(b.stock || 0);
     if (sort === "stock-desc") return Number(b.stock || 0) - Number(a.stock || 0);
     return String(a.name || "").localeCompare(String(b.name || ""));
@@ -242,10 +300,17 @@ function renderProducts() {
     const low = Number(product.stock) <= Number(product.minStock);
     return `
       <tr>
-        <td><strong>${product.name}</strong><br><span class="muted">${product.sku || "sem SKU"} | ${product.category}</span></td>
+        <td>
+          <div class="product-cell">
+            ${productImageTag(product)}
+            <div><strong>${product.name}</strong><br><span class="muted">${product.sku || "sem SKU"} | ${product.category}</span></div>
+          </div>
+        </td>
         <td>${product.supplier || "-"}</td>
         <td><span class="badge ${low ? "low" : "good"}">${product.stock}</span></td>
         <td>${formatMoney(product.costAvg)}</td>
+        <td>${formatSalePrice(product.salePrice)}</td>
+        <td>${formatMargin(product.costAvg, product.salePrice)}</td>
         <td>
           <div class="inline-actions">
             <button class="sell-btn" type="button" data-sell="${product.id}" ${Number(product.stock) <= 0 ? "disabled" : ""}>Vender</button>
@@ -266,6 +331,41 @@ function renderProducts() {
   document.querySelectorAll("[data-delete]").forEach((button) => {
     button.onclick = () => inactivateProduct(button.dataset.delete);
   });
+}
+
+function renderProjection() {
+  const activeProducts = state.products.filter((product) => product.active !== false && Number(product.stock || 0) > 0);
+  const pricedProducts = activeProducts.filter((product) => Number(product.salePrice || 0) > 0);
+  const missingPriceCount = activeProducts.length - pricedProducts.length;
+  const revenue = pricedProducts.reduce((sum, product) => sum + Number(product.stock || 0) * Number(product.salePrice || 0), 0);
+  const cost = pricedProducts.reduce((sum, product) => sum + Number(product.stock || 0) * Number(product.costAvg || 0), 0);
+  const profit = revenue - cost;
+  const margins = pricedProducts
+    .map((product) => saleMargin(product.costAvg, product.salePrice))
+    .filter((margin) => margin !== "");
+  const avgMargin = margins.length
+    ? Math.round((margins.reduce((sum, margin) => sum + Number(margin), 0) / margins.length) * 100) / 100
+    : 0;
+
+  document.getElementById("projectedAvgMargin").textContent = `${avgMargin}%`;
+  document.getElementById("projectedRevenue").textContent = formatMoney(revenue);
+  document.getElementById("projectedProfit").textContent = formatMoney(profit);
+  document.getElementById("projectedMissingPrice").textContent = missingPriceCount;
+
+  document.getElementById("projectionRows").innerHTML = activeProducts.map((product) => {
+    const stock = Number(product.stock || 0);
+    const salePrice = Number(product.salePrice || 0);
+    const costAvg = Number(product.costAvg || 0);
+    const itemRevenue = stock * salePrice;
+    const itemProfit = salePrice > 0 ? itemRevenue - (stock * costAvg) : 0;
+    return `
+      <div class="row-card">
+        <strong>${product.name}</strong>
+        <span>Estoque ${stock} | compra ${formatMoney(costAvg)} | venda ${formatSalePrice(salePrice)} | margem ${formatMargin(costAvg, salePrice)}</span>
+        <span>Faturamento projetado ${formatMoney(itemRevenue)} | lucro projetado ${formatMoney(itemProfit)}</span>
+      </div>
+    `;
+  }).join("") || '<div class="row-card"><strong>Nenhum produto com estoque.</strong><span>Cadastre estoque e preço de venda para gerar a projeção.</span></div>';
 }
 
 function renderSupplierOptions() {
@@ -305,7 +405,7 @@ function renderProductFilters() {
   if (!categoryFilter) return;
   const current = categoryFilter.value;
   categoryFilter.innerHTML = [
-    '<option value="">Todas categorias</option>',
+    '<option value="">Todas as categorias</option>',
     ...state.categories.map((category) => `<option value="${category}">${category}</option>`)
   ].join("");
   categoryFilter.value = state.categories.includes(current) ? current : "";
@@ -341,7 +441,7 @@ function renderSuppliers() {
         <button type="button" data-delete-supplier="${supplier.id}">Inativar</button>
       </div>
     </div>
-  `).join("") || '<div class="row-card"><strong>Nenhum fornecedor cadastrado.</strong><span>Cadastre fornecedores para usar como sugestao em produtos e compras.</span></div>';
+  `).join("") || '<div class="row-card"><strong>Nenhum fornecedor cadastrado.</strong><span>Cadastre fornecedores para usar como sugestão em produtos e compras.</span></div>';
 
   document.querySelectorAll("[data-edit-supplier]").forEach((button) => {
     button.onclick = () => editSupplier(button.dataset.editSupplier);
@@ -392,14 +492,14 @@ function renderHistories() {
       <strong>${purchase.supplier || "Fornecedor"} - ${formatMoney(purchase.total)}</strong>
       <span>${purchase.date} | NF ${purchase.invoice || "-"} | ${purchase.items.length} item(ns)</span>
     </div>
-  `).join("") || '<div class="row-card"><strong>Nenhuma compra lancada.</strong></div>';
+  `).join("") || '<div class="row-card"><strong>Nenhuma compra lançada.</strong></div>';
 
   document.getElementById("saleHistory").innerHTML = state.sales.slice(0, 20).map((sale) => `
     <div class="row-card">
-      <strong>${sale.customer || "Cliente"} - ${formatMoney(sale.netRevenue)}</strong>
-      <span>${sale.date} | ${sale.channel} | custo ${formatMoney(sale.costTotal)} | lucro ${formatMoney(sale.profit)} | margem ${sale.margin}%</span>
+      <strong>${sale.customer || "Cliente"} - preço real ${formatMoney(sale.netRevenue)}</strong>
+      <span>${sale.date} | ${sale.channel} | custo ${formatMoney(sale.costTotal)} | desconto ${formatMoney(sale.discount)} | lucro ${formatMoney(sale.profit)} | margem ${sale.margin}%</span>
     </div>
-  `).join("") || '<div class="row-card"><strong>Nenhuma venda lancada.</strong></div>';
+  `).join("") || '<div class="row-card"><strong>Nenhuma venda lançada.</strong></div>';
 
   document.getElementById("movementHistory").innerHTML = state.movements.slice(0, 40).map((movement) => `
     <div class="row-card">
@@ -426,13 +526,16 @@ function editProduct(id) {
     if (form.elements[key]) form.elements[key].value = value;
   }
   if (form.costAvg) form.costAvg.value = formatMoney(product.costAvg);
+  if (form.salePrice) form.salePrice.value = product.salePrice ? formatMoney(product.salePrice) : "";
+  if (form.marginPercent) form.marginPercent.value = saleMargin(product.costAvg, product.salePrice);
+  updateProductImagePreview(product.imageDataUrl || "");
   document.getElementById("productModalTitle").textContent = "Editar produto";
   document.getElementById("productModal").classList.add("open");
   document.getElementById("productModal").setAttribute("aria-hidden", "false");
 }
 
 async function inactivateProduct(id) {
-  if (!confirm("Apagar este produto da lista? O historico sera mantido.")) return;
+  if (!confirm("Apagar este produto da lista? O histórico será mantido.")) return;
   await api(`/api/products/${id}`, { method: "DELETE" });
   toast("Produto apagado da lista.");
   await loadAll();
@@ -443,7 +546,9 @@ function openProductModal() {
   form.reset();
   renderProductFormOptions();
   form.id.value = "";
+  updateProductImagePreview("");
   if (form.category) form.category.value = "Produto";
+  if (form.marginPercent) form.marginPercent.value = "";
   document.getElementById("productModalTitle").textContent = "Novo produto";
   document.getElementById("productModal").classList.add("open");
   document.getElementById("productModal").setAttribute("aria-hidden", "false");
@@ -508,7 +613,7 @@ function closeSupplierModal() {
 }
 
 async function inactivateSupplier(id) {
-  if (!confirm("Inativar este fornecedor? Produtos e historico continuam mantidos.")) return;
+  if (!confirm("Inativar este fornecedor? Produtos e histórico continuam mantidos.")) return;
   await api(`/api/suppliers/${id}`, { method: "DELETE" });
   toast("Fornecedor inativado.");
   await loadAll();
@@ -525,6 +630,7 @@ function openQuickSale(id) {
   form.quantity.max = product.stock;
   form.quantity.value = Number(product.stock) > 0 ? 1 : 0;
   form.unitPrice.value = Number(product.salePrice || 0);
+  form.realSalePrice.value = Number(product.salePrice || 0);
   form.fees.value = 0;
   form.discount.value = 0;
   document.getElementById("quickSaleProductInfo").textContent =
@@ -541,16 +647,28 @@ function closeQuickSale() {
   modal.setAttribute("aria-hidden", "true");
 }
 
+function syncQuickSaleRealPrice(changedField = "") {
+  const form = document.getElementById("quickSaleForm");
+  const quantity = Number(form.quantity.value || 0);
+  const unitPrice = Number(form.unitPrice.value || 0);
+  const gross = quantity * unitPrice;
+  if (changedField === "realSalePrice") {
+    const realSalePrice = Number(form.realSalePrice.value || 0);
+    form.discount.value = Math.max(0, Math.round((gross - realSalePrice) * 100) / 100);
+    return;
+  }
+  const discount = Number(form.discount.value || 0);
+  form.realSalePrice.value = Math.max(0, Math.round((gross - discount) * 100) / 100);
+}
+
 function calculateQuickSale() {
   const form = document.getElementById("quickSaleForm");
   const product = selectedProduct(form.productId.value);
   if (!product) return;
   const quantity = Number(form.quantity.value || 0);
-  const unitPrice = Number(form.unitPrice.value || 0);
+  const realSalePrice = Number(form.realSalePrice.value || 0);
   const fees = Number(form.fees.value || 0);
-  const discount = Number(form.discount.value || 0);
-  const gross = quantity * unitPrice;
-  const net = gross - discount;
+  const net = realSalePrice;
   const cost = quantity * Number(product.costAvg || 0);
   const profit = net - cost - fees;
   const margin = net > 0 ? Math.round((profit / net) * 10000) / 100 : 0;
@@ -564,20 +682,32 @@ function bindQuickSale() {
   document.querySelectorAll("[data-close-sale]").forEach((button) => {
     button.onclick = closeQuickSale;
   });
-  form.oninput = calculateQuickSale;
+  form.oninput = (event) => {
+    if (["quantity", "unitPrice", "discount", "realSalePrice"].includes(event.target.name)) {
+      syncQuickSaleRealPrice(event.target.name);
+    }
+    calculateQuickSale();
+  };
   form.onsubmit = async (event) => {
     event.preventDefault();
     const product = selectedProduct(form.productId.value);
     if (!product) return;
     const quantity = Number(form.quantity.value || 0);
     if (quantity <= 0) {
-      toast("Informe uma quantidade valida.");
+      toast("Informe uma quantidade válida.");
       return;
     }
     if (quantity > Number(product.stock || 0)) {
-      toast("Quantidade maior que o estoque disponivel.");
+      toast("Quantidade maior que o estoque disponível.");
       return;
     }
+
+    const gross = quantity * Number(form.unitPrice.value || 0);
+    const realSalePrice = Number(form.realSalePrice.value || 0);
+    const discount = Math.max(0, Math.round((gross - realSalePrice) * 100) / 100);
+    const finalUnitPrice = realSalePrice > gross && quantity > 0
+      ? Math.round((realSalePrice / quantity) * 100) / 100
+      : Number(form.unitPrice.value || 0);
 
     const payload = {
       date: form.date.value || today(),
@@ -585,26 +715,59 @@ function bindQuickSale() {
       channel: form.channel.value,
       paymentMethod: form.paymentMethod.value,
       paymentStatus: "Pago",
-      discount: Number(form.discount.value || 0),
+      discount,
       shippingCharged: 0,
       fees: Number(form.fees.value || 0),
       notes: form.notes.value,
       items: [{
         productId: product.id,
         quantity,
-        unitPrice: Number(form.unitPrice.value || 0)
+        unitPrice: finalUnitPrice
       }]
     };
 
     try {
       await api("/api/sales", { method: "POST", body: JSON.stringify(payload) });
       closeQuickSale();
-      toast("Venda lancada e estoque atualizado.");
+      toast("Venda lançada e estoque atualizado.");
       await loadAll();
     } catch (error) {
       toast(error.message);
     }
   };
+}
+
+function bindProductPricing(form) {
+  const costInput = form.costAvg;
+  const saleInput = form.salePrice;
+  const marginInput = form.marginPercent;
+  if (!costInput || !saleInput || !marginInput) return;
+
+  function syncSaleFromMargin() {
+    if (marginInput.value === "") return;
+    const salePrice = salePriceFromMargin(parseMoneyInput(costInput.value), Number(marginInput.value));
+    saleInput.value = salePrice > 0 ? formatMoney(salePrice) : "";
+  }
+
+  function syncMarginFromSale() {
+    const margin = saleMargin(parseMoneyInput(costInput.value), parseMoneyInput(saleInput.value));
+    marginInput.value = margin === "" ? "" : margin;
+  }
+
+  costInput.addEventListener("input", syncSaleFromMargin);
+  costInput.addEventListener("blur", syncSaleFromMargin);
+  marginInput.addEventListener("input", syncSaleFromMargin);
+  saleInput.addEventListener("input", syncMarginFromSale);
+  saleInput.addEventListener("blur", syncMarginFromSale);
+}
+
+function updateProductImagePreview(dataUrl) {
+  const form = document.getElementById("productForm");
+  const preview = document.getElementById("productImagePreview");
+  if (form?.imageDataUrl) form.imageDataUrl.value = dataUrl || "";
+  if (!preview) return;
+  preview.src = dataUrl || "";
+  preview.classList.toggle("visible", Boolean(dataUrl));
 }
 
 function calculatePurchaseTotal() {
@@ -641,11 +804,12 @@ function setDefaultDates() {
 function bindTabs() {
   const titles = {
     dashboard: ["Dashboard", "Controle local para produtos variados."],
-    products: ["Produtos", "Cadastre SKUs, fornecedor, custo medio, preco de venda e estoque minimo."],
+    products: ["Produtos", "Cadastre SKUs, fornecedor, custo médio, preço de venda e estoque mínimo."],
+    projection: ["Projeção", "Veja margem média e faturamento potencial do estoque atual."],
     suppliers: ["Fornecedores", "Cadastre contatos, score e dados comerciais dos seus fornecedores."],
-    purchase: ["Compras", "Lance compras e atualize estoque/custo medio automaticamente."],
+    purchase: ["Compras", "Lance compras e atualize estoque/custo médio automaticamente."],
     sale: ["Venda", "Baixe estoque e calcule faturamento, taxas e lucro."],
-    history: ["Historico", "Veja compras, vendas e movimentacoes de estoque."]
+    history: ["Histórico", "Veja compras, vendas e movimentações de estoque."]
   };
   document.querySelectorAll(".nav").forEach((button) => {
     button.onclick = () => {
@@ -664,11 +828,36 @@ function bindForms() {
   document.getElementById("openProductModal").onclick = openProductModal;
   document.getElementById("addCategoryBtn").onclick = addCategoryFromProductModal;
   document.querySelectorAll(".money-input").forEach((input) => {
-    input.onblur = () => {
+    input.addEventListener("blur", () => {
       input.value = input.value ? formatMoney(parseMoneyInput(input.value)) : "";
-    };
-    input.onfocus = () => input.select();
+    });
+    input.addEventListener("focus", () => input.select());
   });
+  bindProductPricing(productForm);
+  const imageInput = document.getElementById("productImageUpload");
+  if (imageInput) {
+    imageInput.onchange = async () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      if (!/^image\/(png|jpe?g)$/i.test(file.type)) {
+        toast("Envie uma foto PNG ou JPG.");
+        imageInput.value = "";
+        return;
+      }
+      if (file.size > 4_000_000) {
+        toast("Use uma foto de até 4 MB.");
+        imageInput.value = "";
+        return;
+      }
+      try {
+        updateProductImagePreview(await fileToDataUrl(file));
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        imageInput.value = "";
+      }
+    };
+  }
   document.querySelectorAll("[data-close-product]").forEach((button) => {
     button.onclick = closeProductModal;
   });
@@ -676,6 +865,8 @@ function bindForms() {
     event.preventDefault();
     const payload = getFormData(productForm);
     payload.costAvg = parseMoneyInput(payload.costAvg);
+    payload.salePrice = parseMoneyInput(payload.salePrice);
+    delete payload.marginPercent;
     await api(payload.id ? `/api/products/${payload.id}` : "/api/products", {
       method: payload.id ? "PUT" : "POST",
       body: JSON.stringify(payload)
@@ -730,7 +921,7 @@ function bindForms() {
     purchaseItems.innerHTML = "";
     setDefaultDates();
     addInitialRows();
-    toast("Compra lancada.");
+    toast("Compra lançada.");
     await loadAll();
   };
 
@@ -752,7 +943,7 @@ function bindForms() {
     saleItems.innerHTML = "";
     setDefaultDates();
     addInitialRows();
-    toast("Venda lancada.");
+    toast("Venda lançada.");
     await loadAll();
   };
 }
@@ -798,7 +989,7 @@ function bindSpreadsheetImport() {
       });
       state.spreadsheetImport = result;
       renderSpreadsheetPreview(result);
-      toast("Previa gerada.");
+      toast("Prévia gerada.");
     } catch (error) {
       state.spreadsheetImport = null;
       renderSpreadsheetPreview({ errors: [error.message], warnings: [], items: [] });
@@ -808,7 +999,7 @@ function bindSpreadsheetImport() {
 
   applyButton.onclick = async () => {
     if (!state.spreadsheetImport) return;
-    if (!confirm("Confirmar importacao da planilha no estoque?")) return;
+    if (!confirm("Confirmar importação da planilha no estoque?")) return;
     try {
       const result = await api("/api/products-import", {
         method: "POST",
@@ -819,7 +1010,7 @@ function bindSpreadsheetImport() {
       renderSpreadsheetPreview(null);
       modal.classList.remove("open");
       modal.setAttribute("aria-hidden", "true");
-      toast(`Importacao concluida: ${result.itemCount} produto(s).`);
+      toast(`Importação concluída: ${result.itemCount} produto(s).`);
       await loadAll();
     } catch (error) {
       toast(error.message);
@@ -847,7 +1038,7 @@ function bindBackup() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `loja-erp-backup-${today()}.json`;
+    link.download = `scaff-tcg-backup-${today()}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -860,6 +1051,45 @@ function bindBackup() {
     await api("/api/import", { method: "POST", body: text });
     toast("Backup importado.");
     await loadAll();
+  };
+}
+
+function bindReports() {
+  const button = document.getElementById("downloadClientReport");
+  if (!button) return;
+  button.onclick = () => {
+    window.location.href = "/api/reports/client-stock.pdf";
+  };
+}
+
+function bindLogoUpload() {
+  const input = document.getElementById("logoUpload");
+  if (!input) return;
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    if (!/^image\/(png|jpe?g)$/i.test(file.type)) {
+      toast("Envie uma logo PNG ou JPG.");
+      input.value = "";
+      return;
+    }
+    if (file.size > 4_000_000) {
+      toast("Use uma logo de até 4 MB.");
+      input.value = "";
+      return;
+    }
+    try {
+      const logoDataUrl = await fileToDataUrl(file);
+      state.settings = await api("/api/settings", {
+        method: "POST",
+        body: JSON.stringify({ logoDataUrl })
+      });
+      toast("Logo salva para o PDF.");
+    } catch (error) {
+      toast(error.message);
+    } finally {
+      input.value = "";
+    }
   };
 }
 
@@ -879,6 +1109,8 @@ window.addEventListener("DOMContentLoaded", async () => {
   bindForms();
   bindQuickSale();
   bindBackup();
+  bindReports();
+  bindLogoUpload();
   setDefaultDates();
   addInitialRows();
   try {

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Loja ERP</title>
+  <title>Scaff TCG</title>
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
@@ -12,16 +12,17 @@
       <div class="brand">
         <div class="ball"></div>
         <div>
-          <strong>Loja ERP</strong>
+          <strong>Scaff TCG</strong>
           <span>Estoque, compras, vendas e lucro</span>
         </div>
       </div>
       <nav>
         <button class="nav active" data-tab="dashboard">Dashboard</button>
         <button class="nav" data-tab="products">Produtos</button>
+        <button class="nav" data-tab="projection">Projeção</button>
         <button class="nav" data-tab="suppliers">Fornecedores</button>
         <button class="nav" data-tab="purchase">Compras</button>
-        <button class="nav" data-tab="history">Historico</button>
+        <button class="nav" data-tab="history">Histórico</button>
       </nav>
     </aside>
 
@@ -30,6 +31,12 @@
         <div>
           <h1 id="pageTitle">Dashboard</h1>
           <p id="pageSubtitle">Controle local para produtos variados.</p>
+        </div>
+        <div class="top-actions">
+          <label class="file-btn">Upload logo
+            <input id="logoUpload" type="file" accept="image/png,image/jpeg">
+          </label>
+          <button class="primary" id="downloadClientReport" type="button">PDF cliente</button>
         </div>
       </header>
 
@@ -62,7 +69,7 @@
           </section>
           <section class="panel">
             <div class="panel-head">
-              <h2>Ultimas vendas</h2>
+              <h2>Últimas vendas</h2>
             </div>
             <div id="recentSales" class="stack"></div>
           </section>
@@ -70,7 +77,7 @@
 
         <section class="panel">
           <div class="panel-head">
-            <h2>Relatorio de vendas</h2>
+            <h2>Relatório de vendas</h2>
           </div>
           <div id="salesReport" class="report-grid"></div>
           <div id="salesReportRows" class="stack"></div>
@@ -89,12 +96,12 @@
             <div class="product-filters">
               <input id="productSearch" class="search" placeholder="Buscar por SKU, nome ou fornecedor">
               <select id="categoryFilter">
-                <option value="">Todas categorias</option>
+                <option value="">Todas as categorias</option>
               </select>
               <select id="productSort">
                 <option value="name-asc">Nome A-Z</option>
-                <option value="cost-asc">Menor preco</option>
-                <option value="cost-desc">Maior preco</option>
+                <option value="cost-asc">Menor preço</option>
+                <option value="cost-desc">Maior preço</option>
                 <option value="stock-asc">Menor estoque</option>
                 <option value="stock-desc">Maior estoque</option>
               </select>
@@ -107,13 +114,43 @@
                   <th>Produto</th>
                   <th>Fornecedor</th>
                   <th>Estoque</th>
-                  <th>Custo</th>
+                  <th>Preço compra</th>
+                  <th>Preço venda</th>
+                  <th>Margem</th>
                   <th></th>
                 </tr>
               </thead>
               <tbody id="productsTable"></tbody>
             </table>
           </div>
+        </section>
+      </section>
+
+      <section class="tab" id="projection">
+        <div class="cards">
+          <article class="metric">
+            <span>Média de margem</span>
+            <strong id="projectedAvgMargin">0%</strong>
+          </article>
+          <article class="metric">
+            <span>Faturamento se vender tudo</span>
+            <strong id="projectedRevenue">R$ 0,00</strong>
+          </article>
+          <article class="metric">
+            <span>Lucro projetado</span>
+            <strong id="projectedProfit">R$ 0,00</strong>
+          </article>
+          <article class="metric">
+            <span>Produtos sem preço</span>
+            <strong id="projectedMissingPrice">0</strong>
+          </article>
+        </div>
+
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Projeção por produto</h2>
+          </div>
+          <div id="projectionRows" class="stack"></div>
         </section>
       </section>
 
@@ -145,9 +182,9 @@
             </div>
             <div id="purchaseItems" class="items"></div>
             <button type="button" id="addPurchaseItem">Adicionar item</button>
-            <label>Observacoes<textarea name="notes" rows="3"></textarea></label>
+            <label>Observações<textarea name="notes" rows="3"></textarea></label>
             <div class="total-line">Total da compra: <strong id="purchaseTotal">R$ 0,00</strong></div>
-            <button class="primary" type="submit">Lancar compra</button>
+            <button class="primary" type="submit">Lançar compra</button>
           </form>
         </section>
       </section>
@@ -163,13 +200,13 @@
               <label>Cliente<input name="customer" placeholder="Cliente ou loja"></label>
               <label>Canal
                 <select name="channel">
-                  <option>Balcao</option>
+                  <option>Balcão</option>
                   <option>LigaPokemon</option>
                   <option>Mercado Livre</option>
                   <option>Shopee</option>
                   <option>WhatsApp</option>
-                  <option>Site proprio</option>
-                  <option>Loja fisica</option>
+                  <option>Site próprio</option>
+                  <option>Loja física</option>
                   <option>Instagram</option>
                   <option>Amazon</option>
                   <option>Atacado</option>
@@ -182,16 +219,16 @@
                   <option>Cancelado</option>
                 </select>
               </label>
-              <label>Pagamento<input name="paymentMethod" placeholder="PIX, cartao, boleto..."></label>
+              <label>Pagamento<input name="paymentMethod" placeholder="PIX, cartão, boleto..."></label>
               <label>Desconto<input name="discount" type="number" min="0" step="0.01" value="0"></label>
               <label>Frete cobrado<input name="shippingCharged" type="number" min="0" step="0.01" value="0"></label>
               <label>Taxas/marketplace<input name="fees" type="number" min="0" step="0.01" value="0"></label>
             </div>
             <div id="saleItems" class="items"></div>
             <button type="button" id="addSaleItem">Adicionar item</button>
-            <label>Observacoes<textarea name="notes" rows="3"></textarea></label>
+            <label>Observações<textarea name="notes" rows="3"></textarea></label>
             <div class="total-line">Venda: <strong id="saleTotal">R$ 0,00</strong> | Lucro estimado: <strong id="saleProfit">R$ 0,00</strong></div>
-            <button class="primary" type="submit">Lancar venda</button>
+            <button class="primary" type="submit">Lançar venda</button>
           </form>
         </section>
       </section>
@@ -213,7 +250,7 @@
         </div>
         <section class="panel">
           <div class="panel-head">
-            <h2>Movimentacoes de estoque</h2>
+            <h2>Movimentações de estoque</h2>
           </div>
           <div id="movementHistory" class="stack"></div>
         </section>
@@ -228,15 +265,22 @@
       <div class="panel-head split">
         <div>
           <h2 id="productModalTitle">Novo produto</h2>
-          <p class="muted">O SKU sera gerado automaticamente.</p>
+          <p class="muted">O SKU será gerado automaticamente.</p>
         </div>
         <button type="button" data-close-product>Fechar</button>
       </div>
       <form id="productForm" class="form">
         <input type="hidden" name="id">
+        <input type="hidden" name="imageDataUrl">
         <div class="product-form-grid">
           <label class="field-large">Nome do produto
-            <input name="name" required placeholder="Ex: Box Pokemon Mega Charizard Y">
+            <input name="name" required placeholder="Ex: Box Pokémon Mega Charizard Y">
+          </label>
+          <label class="field-large">Foto do produto
+            <span class="product-image-field">
+              <input id="productImageUpload" type="file" accept="image/png,image/jpeg">
+              <img id="productImagePreview" alt="">
+            </span>
           </label>
           <label class="field-large">Fornecedor
             <select name="supplier" id="productSupplierSelect"></select>
@@ -249,6 +293,12 @@
           </label>
           <label>Custo
             <input class="money-input" name="costAvg" type="text" inputmode="decimal" placeholder="R$ 0,00">
+          </label>
+          <label>Margem (%)
+            <input name="marginPercent" type="number" step="0.01" placeholder="30">
+          </label>
+          <label>Preço venda
+            <input class="money-input" name="salePrice" type="text" inputmode="decimal" placeholder="R$ 0,00">
           </label>
           <label>Estoque
             <input name="stock" type="number" min="0" step="1" placeholder="0">
@@ -311,7 +361,7 @@
           <label>Score
             <input name="score" type="number" min="0" max="100" step="1" value="0">
           </label>
-          <label class="wide">Observacoes
+          <label class="wide">Observações
             <textarea name="notes" rows="3"></textarea>
           </label>
         </div>
@@ -337,25 +387,26 @@
         <div class="grid-form compact">
           <label>Data<input name="date" type="date"></label>
           <label>Quantidade<input name="quantity" type="number" min="1" step="1" value="1"></label>
-          <label>Valor da venda<input name="unitPrice" type="number" min="0" step="0.01" required></label>
+          <label>Preço tabela/un.<input name="unitPrice" type="number" min="0" step="0.01" required></label>
           <label>Taxas<input name="fees" type="number" min="0" step="0.01" value="0"></label>
+          <label>Preço real da venda<input name="realSalePrice" type="number" min="0" step="0.01" required></label>
           <label>Cliente<input name="customer" placeholder="Cliente"></label>
           <label>Canal
             <select name="channel">
-              <option>Balcao</option>
+              <option>Balcão</option>
               <option>WhatsApp</option>
               <option>Instagram</option>
               <option>Mercado Livre</option>
               <option>Shopee</option>
-              <option>Site proprio</option>
-              <option>Loja fisica</option>
+              <option>Site próprio</option>
+              <option>Loja física</option>
               <option>Atacado</option>
             </select>
           </label>
-          <label>Pagamento<input name="paymentMethod" placeholder="PIX, cartao, dinheiro..."></label>
+          <label>Pagamento<input name="paymentMethod" placeholder="PIX, cartão, dinheiro..."></label>
           <label>Desconto<input name="discount" type="number" min="0" step="0.01" value="0"></label>
         </div>
-        <label>Observacoes<textarea name="notes" rows="3"></textarea></label>
+        <label>Observações<textarea name="notes" rows="3"></textarea></label>
         <div class="total-line">
           Venda: <strong id="quickSaleTotal">R$ 0,00</strong>
           Lucro: <strong id="quickSaleProfit">R$ 0,00</strong>
@@ -372,7 +423,7 @@
       <div class="panel-head split">
         <div>
           <h2 id="spreadsheetTitle">Importar planilha</h2>
-          <p class="muted">Use Produto e Pago. Vendido, Quantidade, SKU, Fornecedor e Categoria sao opcionais.</p>
+          <p class="muted">Use Produto e Pago. Vendido, Quantidade, SKU, Fornecedor e Categoria são opcionais.</p>
         </div>
         <button type="button" data-close-import>Fechar</button>
       </div>
@@ -390,8 +441,8 @@
           Lucro e Lucro% ficam fora da planilha: o sistema calcula automaticamente pelas vendas.
         </div>
         <div class="form-actions">
-          <button type="button" id="previewSpreadsheet">Gerar previa</button>
-          <button class="primary" type="button" id="applySpreadsheet" disabled>Confirmar importacao</button>
+          <button type="button" id="previewSpreadsheet">Gerar prévia</button>
+          <button class="primary" type="button" id="applySpreadsheet" disabled>Confirmar importação</button>
         </div>
         <div id="spreadsheetPreview" class="import-preview"></div>
       </div>

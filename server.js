@@ -38,6 +38,7 @@ const {
   getSummary
 } = require("./src/storage");
 const { extractProductsFromSpreadsheet } = require("./src/spreadsheetImport");
+const { generateClientStockPdf } = require("./src/pdfReport");
 
 const port = Number(process.env.PORT || 3000);
 const publicDir = path.join(__dirname, "public");
@@ -65,6 +66,16 @@ function sendJson(res, payload, status = 200) {
   send(res, status, payload, { "Cache-Control": "no-store" });
 }
 
+function sendPdf(res, buffer, fileName) {
+  res.writeHead(200, {
+    "Content-Type": "application/pdf",
+    "Content-Length": buffer.length,
+    "Content-Disposition": `attachment; filename="${fileName}"`,
+    "Cache-Control": "no-store"
+  });
+  res.end(buffer);
+}
+
 function isAuthorized(req) {
   if (!appPassword) return true;
   const header = req.headers.authorization || "";
@@ -79,10 +90,10 @@ function isAuthorized(req) {
 function requireAuth(req, res) {
   if (isAuthorized(req)) return true;
   res.writeHead(401, {
-    "WWW-Authenticate": 'Basic realm="Loja ERP"',
+    "WWW-Authenticate": 'Basic realm="Scaff TCG"',
     "Content-Type": "text/plain; charset=utf-8"
   });
-  res.end("Autenticacao obrigatoria.");
+  res.end("Autenticação obrigatória.");
   return false;
 }
 
@@ -102,7 +113,7 @@ function readBody(req, maxBytes = 2_000_000) {
         resolve(JSON.parse(body));
       } catch (error) {
         error.status = 400;
-        error.message = "JSON invalido.";
+        error.message = "JSON inválido.";
         reject(error);
       }
     });
@@ -120,7 +131,7 @@ function serveStatic(req, res, url) {
   }
 
   if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-    send(res, 404, "Arquivo nao encontrado.");
+    send(res, 404, "Arquivo não encontrado.");
     return;
   }
 
@@ -140,68 +151,98 @@ async function handleApi(req, res, url) {
 
   try {
     if (method === "GET" && resource === "health") {
-      return sendJson(res, { ok: true, app: "loja-erp" });
+      return sendJson(res, { ok: true, app: "scaff-tcg" });
     }
 
     if (method === "GET" && resource === "summary") {
-      return sendJson(res, getSummary());
+      return sendJson(res, await getSummary());
+    }
+
+    if (method === "GET" && resource === "settings") {
+      const db = await readDb();
+      return sendJson(res, {
+        storeName: db.meta?.storeName || "Scaff TCG",
+        logoDataUrl: db.meta?.logoDataUrl || ""
+      });
+    }
+
+    if (method === "POST" && resource === "settings") {
+      const input = await readBody(req, 6_000_000);
+      const logoDataUrl = String(input.logoDataUrl || "");
+      if (logoDataUrl && !/^data:image\/(png|jpe?g);base64,/i.test(logoDataUrl)) {
+        return sendJson(res, { error: "Envie uma logo PNG ou JPG." }, 400);
+      }
+      const db = await readDb();
+      db.meta = {
+        ...(db.meta || {}),
+        storeName: "Scaff TCG",
+        logoDataUrl
+      };
+      await writeDb(db);
+      return sendJson(res, { storeName: "Scaff TCG", logoDataUrl });
+    }
+
+    if (method === "GET" && resource === "reports" && id === "client-stock.pdf") {
+      const date = new Date().toISOString().slice(0, 10);
+      const pdf = generateClientStockPdf(await readDb());
+      return sendPdf(res, pdf, `relatorio-estoque-cliente-${date}.pdf`);
     }
 
     if (method === "GET" && resource === "products") {
-      const db = readDb();
+      const db = await readDb();
       return sendJson(res, db.products);
     }
 
     if (method === "GET" && resource === "suppliers") {
-      const db = readDb();
+      const db = await readDb();
       return sendJson(res, db.suppliers || []);
     }
 
     if (method === "GET" && resource === "categories") {
-      return sendJson(res, getCategories());
+      return sendJson(res, await getCategories());
     }
 
     if (method === "POST" && resource === "categories") {
       const input = await readBody(req);
-      return sendJson(res, addCategory(input), 201);
+      return sendJson(res, await addCategory(input), 201);
     }
 
     if (method === "POST" && resource === "suppliers") {
       const input = await readBody(req);
-      return sendJson(res, upsertSupplier(input), 201);
+      return sendJson(res, await upsertSupplier(input), 201);
     }
 
     if (method === "PUT" && resource === "suppliers" && id) {
       const input = await readBody(req);
-      return sendJson(res, upsertSupplier({ ...input, id }));
+      return sendJson(res, await upsertSupplier({ ...input, id }));
     }
 
     if (method === "DELETE" && resource === "suppliers" && id) {
-      return sendJson(res, deleteSupplier(id));
+      return sendJson(res, await deleteSupplier(id));
     }
 
     if (method === "POST" && resource === "products") {
-      const input = await readBody(req);
-      return sendJson(res, upsertProduct(input), 201);
+      const input = await readBody(req, 8_000_000);
+      return sendJson(res, await upsertProduct(input), 201);
     }
 
     if (method === "POST" && resource === "products-import") {
       const input = await readBody(req, 12_000_000);
       const buffer = Buffer.from(String(input.contentBase64 || ""), "base64");
       if (!buffer.length) {
-        return sendJson(res, { error: "Arquivo da planilha nao enviado." }, 400);
+        return sendJson(res, { error: "Arquivo da planilha não enviado." }, 400);
       }
 
       const extracted = extractProductsFromSpreadsheet(input.fileName || "estoque.xlsx", buffer);
       const replaceStock = input.replaceStock !== false;
-      const plan = planProductImport(extracted.products, { replaceStock });
+      const plan = await planProductImport(extracted.products, { replaceStock });
       const errors = [...(extracted.errors || []), ...(plan.errors || [])];
 
       if (input.apply === true) {
         if (errors.length) {
           return sendJson(res, { ...extracted, ...plan, errors, error: "Corrija os erros antes de importar." }, 400);
         }
-        const imported = importProductsFromSpreadsheet(extracted.products, { replaceStock });
+        const imported = await importProductsFromSpreadsheet(extracted.products, { replaceStock });
         return sendJson(res, { ...extracted, ...imported });
       }
 
@@ -209,41 +250,41 @@ async function handleApi(req, res, url) {
     }
 
     if (method === "PUT" && resource === "products" && id) {
-      const input = await readBody(req);
-      return sendJson(res, upsertProduct({ ...input, id }));
+      const input = await readBody(req, 8_000_000);
+      return sendJson(res, await upsertProduct({ ...input, id }));
     }
 
     if (method === "DELETE" && resource === "products" && id) {
-      return sendJson(res, deleteProduct(id));
+      return sendJson(res, await deleteProduct(id));
     }
 
     if (method === "GET" && resource === "purchases") {
-      const db = readDb();
+      const db = await readDb();
       return sendJson(res, db.purchases);
     }
 
     if (method === "POST" && resource === "purchases") {
       const input = await readBody(req);
-      return sendJson(res, createPurchase(input), 201);
+      return sendJson(res, await createPurchase(input), 201);
     }
 
     if (method === "GET" && resource === "sales") {
-      const db = readDb();
+      const db = await readDb();
       return sendJson(res, db.sales);
     }
 
     if (method === "POST" && resource === "sales") {
       const input = await readBody(req);
-      return sendJson(res, createSale(input), 201);
+      return sendJson(res, await createSale(input), 201);
     }
 
     if (method === "GET" && resource === "movements") {
-      const db = readDb();
+      const db = await readDb();
       return sendJson(res, db.movements.slice().reverse());
     }
 
     if (method === "GET" && resource === "export") {
-      return sendJson(res, readDb());
+      return sendJson(res, await readDb());
     }
 
     if (method === "POST" && resource === "import") {
@@ -257,11 +298,11 @@ async function handleApi(req, res, url) {
         sales: input.sales || [],
         movements: input.movements || []
       };
-      writeDb(next);
+      await writeDb(next);
       return sendJson(res, { ok: true });
     }
 
-    return sendJson(res, { error: "Rota nao encontrada." }, 404);
+    return sendJson(res, { error: "Rota não encontrada." }, 404);
   } catch (error) {
     return sendJson(res, { error: error.message || "Erro interno." }, error.status || 500);
   }
@@ -278,5 +319,5 @@ const server = http.createServer((req, res) => {
 });
 
 server.listen(port, () => {
-  console.log(`Loja ERP rodando em http://localhost:${port}`);
+  console.log(`Scaff TCG rodando em http://localhost:${port}`);
 });

@@ -78,7 +78,7 @@ function readZipEntries(buffer) {
       break;
     }
   }
-  if (end === -1) throw new Error("Arquivo XLSX invalido: diretorio ZIP nao encontrado.");
+  if (end === -1) throw new Error("Arquivo XLSX inválido: diretório ZIP não encontrado.");
 
   const totalEntries = buffer.readUInt16LE(end + 10);
   const centralOffset = buffer.readUInt32LE(end + 16);
@@ -87,7 +87,7 @@ function readZipEntries(buffer) {
 
   for (let i = 0; i < totalEntries; i += 1) {
     if (buffer.readUInt32LE(offset) !== 0x02014b50) {
-      throw new Error("Arquivo XLSX invalido: entrada ZIP corrompida.");
+      throw new Error("Arquivo XLSX inválido: entrada ZIP corrompida.");
     }
     const method = buffer.readUInt16LE(offset + 10);
     const compressedSize = buffer.readUInt32LE(offset + 20);
@@ -106,7 +106,7 @@ function readZipEntries(buffer) {
     if (!entry) return "";
     const localOffset = entry.localOffset;
     if (buffer.readUInt32LE(localOffset) !== 0x04034b50) {
-      throw new Error(`Arquivo XLSX invalido: cabecalho local ausente em ${name}.`);
+      throw new Error(`Arquivo XLSX inválido: cabeçalho local ausente em ${name}.`);
     }
     const fileNameLength = buffer.readUInt16LE(localOffset + 26);
     const extraLength = buffer.readUInt16LE(localOffset + 28);
@@ -114,7 +114,7 @@ function readZipEntries(buffer) {
     const compressed = buffer.subarray(dataStart, dataStart + entry.compressedSize);
     if (entry.method === 0) return compressed.toString("utf8");
     if (entry.method === 8) return zlib.inflateRawSync(compressed).toString("utf8");
-    throw new Error(`Metodo de compressao nao suportado no XLSX: ${entry.method}.`);
+    throw new Error(`Método de compressão não suportado no XLSX: ${entry.method}.`);
   }
 
   return { entries, read };
@@ -232,7 +232,7 @@ function extractRows(fileName, buffer) {
     return { sheetName: "CSV", rows: parseCsvRows(buffer.toString("utf8")) };
   }
   if (!lower.endsWith(".xlsx")) {
-    throw new Error("Formato nao suportado. Envie .xlsx ou .csv.");
+    throw new Error("Formato não suportado. Envie .xlsx ou .csv.");
   }
   const zip = readZipEntries(buffer);
   const sharedStrings = parseSharedStrings(zip.read("xl/sharedStrings.xml"));
@@ -253,7 +253,7 @@ function extractProductsFromSpreadsheet(fileName, buffer) {
     return findHeader(headers, PRODUCT_HEADERS) >= 0 && findHeader(headers, COST_HEADERS) >= 0;
   });
   if (headerRowIndex === -1) {
-    throw new Error("Nao encontrei cabecalho com as colunas Produto e Pago/Custo.");
+    throw new Error("Não encontrei cabeçalho com as colunas Produto e Pago/Custo.");
   }
 
   const headerValues = rows[headerRowIndex].map((cell) => String(cell || "").trim());
@@ -269,10 +269,10 @@ function extractProductsFromSpreadsheet(fileName, buffer) {
     variation: findHeader(headers, VARIATION_HEADERS)
   };
 
-  if (columns.sale === -1) warnings.push("Coluna Vendido/Preco venda nao encontrada; preco de venda ficara 0 nos novos produtos.");
-  if (columns.quantity === -1) warnings.push("Coluna Quantidade nao encontrada; cada linha valida sera importada como 1 unidade.");
+  if (columns.sale === -1) warnings.push("Coluna Vendido/Preço venda não encontrada; preço de venda ficará 0 nos novos produtos.");
+  if (columns.quantity === -1) warnings.push("Coluna Quantidade não encontrada; cada linha válida será importada como 1 unidade.");
   if (headers.some((header) => IGNORED_CALCULATED_HEADERS.includes(header))) {
-    warnings.push("Colunas Lucro e Lucro% foram ignoradas; o sistema calcula esses valores pelas vendas lancadas.");
+    warnings.push("Colunas Lucro e Lucro% foram ignoradas; o sistema calcula esses valores pelas vendas lançadas.");
   }
 
   const grouped = new Map();
@@ -290,7 +290,7 @@ function extractProductsFromSpreadsheet(fileName, buffer) {
     const quantity = columns.quantity >= 0 ? parseQuantity(row[columns.quantity], 0) : 1;
     if (quantity <= 0) {
       skippedRows += 1;
-      errors.push(`Linha ${rowNumber}: quantidade invalida.`);
+      errors.push(`Linha ${rowNumber}: quantidade inválida.`);
       return;
     }
 
