@@ -122,7 +122,7 @@ main {
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: 24px;
   align-items: end;
-  padding: clamp(24px, 5vw, 48px) 0 28px;
+  padding: clamp(18px, 3vw, 30px) 0 20px;
 }
 
 .eyebrow {
@@ -137,8 +137,8 @@ main {
 h1 {
   max-width: 780px;
   margin: 0;
-  font-size: clamp(2rem, 6vw, 4.7rem);
-  line-height: .95;
+  font-size: clamp(1.8rem, 4vw, 3.2rem);
+  line-height: 1;
   letter-spacing: 0;
 }
 
@@ -235,6 +235,15 @@ input:focus, select:focus, textarea:focus {
   border-radius: 8px;
   background: var(--panel);
   box-shadow: 0 10px 24px rgba(33, 26, 18, .08);
+  color: inherit;
+  text-decoration: none;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.product-card:hover {
+  border-color: var(--accent);
+  box-shadow: 0 16px 34px rgba(33, 26, 18, .14);
+  transform: translateY(-2px);
 }
 
 .product-card .product-open {
@@ -273,7 +282,8 @@ input:focus, select:focus, textarea:focus {
 
 .product-info {
   display: grid;
-  gap: 7px;
+  gap: 10px;
+  align-content: start;
 }
 
 .product-info h2 {
@@ -289,7 +299,7 @@ input:focus, select:focus, textarea:focus {
 
 .product-price {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 8px;
   align-items: center;
 }
@@ -307,14 +317,12 @@ input:focus, select:focus, textarea:focus {
   font-weight: 900;
 }
 
-.product-actions,
 .detail-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 
-.product-actions button:first-child,
 .detail-actions button:not(.buy-now) {
   border-color: var(--line);
   background: #fff;
@@ -739,7 +747,6 @@ input:focus, select:focus, textarea:focus {
 
   .product-grid,
   .recommendation-grid,
-  .product-actions,
   .detail-actions {
     grid-template-columns: 1fr;
   }

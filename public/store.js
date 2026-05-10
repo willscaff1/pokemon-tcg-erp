@@ -155,28 +155,24 @@ function renderProducts() {
     : "Nenhum produto encontrado com estes filtros.";
 
   target.innerHTML = products.map((product) => `
-    <article class="product-card" data-product-card="${product.id}">
-      <button class="product-open" type="button" data-open-product="${product.id}" aria-label="Abrir ${product.name}">
+    <a class="product-card" href="/produto/${encodeURIComponent(product.id)}" data-open-product="${product.id}">
+      <span class="product-open">
         <span class="product-media">${productImage(product)}</span>
-      </button>
-      <div class="product-info">
+      </span>
+      <span class="product-info">
         <h2>${product.name}</h2>
-        <div class="product-price">
+        <span class="product-price">
           <strong>${formatMoney(product.salePrice)}</strong>
-        </div>
-      </div>
-      <div class="product-actions">
-        <button type="button" data-open-product="${product.id}">Ver detalhes</button>
-        <button type="button" data-add="${product.id}">Adicionar</button>
-      </div>
-    </article>
+        </span>
+      </span>
+    </a>
   `).join("");
 
-  target.querySelectorAll("[data-open-product]").forEach((button) => {
-    button.onclick = () => openProductDetail(button.dataset.openProduct);
-  });
-  target.querySelectorAll("[data-add]").forEach((button) => {
-    button.onclick = () => addToCart(button.dataset.add);
+  target.querySelectorAll("[data-open-product]").forEach((link) => {
+    link.onclick = (event) => {
+      event.preventDefault();
+      openProductDetail(link.dataset.openProduct);
+    };
   });
 }
 
