@@ -168,12 +168,6 @@ function renderProducts() {
     </a>
   `).join("");
 
-  target.querySelectorAll("[data-open-product]").forEach((link) => {
-    link.onclick = (event) => {
-      event.preventDefault();
-      openProductDetail(link.dataset.openProduct);
-    };
-  });
 }
 
 function renderProductDetail() {
@@ -229,11 +223,11 @@ function renderProductDetail() {
       <div class="recommendation-grid">
         ${recommendedProducts.map((item) => `
           <article class="recommendation-card">
-            <button type="button" data-open-product="${item.id}">
+            <a href="/produto/${encodeURIComponent(item.id)}">
               <span class="recommendation-media">${productImage(item)}</span>
               <strong>${item.name}</strong>
               <span>${formatMoney(item.salePrice)}</span>
-            </button>
+            </a>
           </article>
         `).join("") || '<div class="status-message">Cadastre mais produtos para gerar recomendacoes.</div>'}
       </div>
@@ -249,9 +243,6 @@ function renderProductDetail() {
       addToCart(button.dataset.buyNow);
       openCart();
     };
-  });
-  target.querySelectorAll("[data-open-product]").forEach((button) => {
-    button.onclick = () => openProductDetail(button.dataset.openProduct);
   });
 }
 

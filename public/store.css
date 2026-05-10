@@ -498,7 +498,7 @@ input:focus, select:focus, textarea:focus {
   gap: 12px;
 }
 
-.recommendation-card button {
+.recommendation-card a {
   display: grid;
   gap: 8px;
   width: 100%;
@@ -510,6 +510,7 @@ input:focus, select:focus, textarea:focus {
   padding: 10px;
   text-align: left;
   cursor: pointer;
+  text-decoration: none;
 }
 
 .recommendation-card strong,
