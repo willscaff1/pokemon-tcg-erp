@@ -124,7 +124,7 @@ function readBody(req, maxBytes = 2_000_000) {
 
 function resolveStaticPath(url) {
   let requested = url.pathname;
-  if (requested === "/" || requested === "/index.html") {
+  if (requested === "/" || requested === "/index.html" || requested.startsWith("/produto/")) {
     requested = "/store.html";
   }
   if (requested === "/admin") {
@@ -179,6 +179,7 @@ function publicProduct(product) {
     sku: product.sku || "",
     name: product.name,
     category: product.category || "Produto",
+    description: product.description || "",
     imageDataUrl: product.imageDataUrl || "",
     salePrice: Number(product.salePrice || 0),
     stock: Number(product.stock || 0)

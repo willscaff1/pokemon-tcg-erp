@@ -5,6 +5,7 @@ Sistema para controlar estoque, compras, vendas, faturamento e lucro de produtos
 ## O que já faz
 
 - Loja pública em `/` com catálogo, categorias, busca, carrinho e checkout.
+- Página de produto em `/produto/{id}` com fotos, descrição, compra rápida, carrinho e recomendações.
 - Área administrativa em `/admin`, protegida por Basic Auth quando `APP_PASSWORD` estiver configurada.
 - Cadastro de produtos com foto, SKU, variação, fornecedor, categoria, preço de compra, preço de venda, custo médio, margem e estoque mínimo.
 - Lançamento de compras com frete, impostos e taxas rateados no custo médio.

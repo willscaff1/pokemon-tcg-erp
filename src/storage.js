@@ -309,6 +309,7 @@ async function upsertProduct(input) {
     category: String(input.category || "Produto").trim(),
     language: String(input.language || "N/A").trim(),
     supplier: String(input.supplier || "").trim(),
+    description: String(input.description || existing?.description || "").trim(),
     imageDataUrl: String(input.imageDataUrl || existing?.imageDataUrl || "").trim(),
     salePrice: input.salePrice !== undefined && input.salePrice !== "" ? clampMoney(input.salePrice) : clampMoney(existing?.salePrice),
     costAvg: clampMoney(input.costAvg),

@@ -3,6 +3,7 @@ const state = {
   categories: [],
   activeCategory: "Todos",
   query: "",
+  detailProductId: productIdFromPath(),
   cart: loadCart()
 };
 
@@ -10,6 +11,22 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 
 function formatMoney(value) {
   return money.format(Number(value || 0));
+}
+
+function productIdFromPath() {
+  const match = window.location.pathname.match(/^\/produto\/([^/]+)$/);
+  return match ? decodeURIComponent(match[1]) : "";
+}
+
+function productDescription(product) {
+  const description = String(product.description || "").trim();
+  if (description) return description;
+  return [
+    `${product.name} disponivel para pronta venda.`,
+    product.category ? `Categoria: ${product.category}.` : "",
+    product.sku ? `SKU: ${product.sku}.` : "",
+    `Estoque atual: ${product.stock} unidade(s).`
+  ].filter(Boolean).join(" ");
 }
 
 function loadCart() {
@@ -71,6 +88,21 @@ function closeCart() {
   document.getElementById("drawerBackdrop").classList.remove("open");
 }
 
+function openProductDetail(id, push = true) {
+  const product = productById(id);
+  if (!product) return;
+  state.detailProductId = id;
+  if (push) window.history.pushState({ productId: id }, "", `/produto/${encodeURIComponent(id)}`);
+  renderAll();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function closeProductDetail(push = true) {
+  state.detailProductId = "";
+  if (push) window.history.pushState({}, "", "/");
+  renderAll();
+}
+
 function productImage(product, className = "") {
   if (product.imageDataUrl) {
     return `<img class="${className}" src="${product.imageDataUrl}" alt="">`;
@@ -105,6 +137,17 @@ function renderCategories() {
 }
 
 function renderProducts() {
+  const isDetailOpen = Boolean(state.detailProductId);
+  document.querySelector(".hero").hidden = isDetailOpen;
+  document.querySelector(".toolbar").hidden = isDetailOpen;
+  document.getElementById("statusMessage").hidden = isDetailOpen;
+  document.getElementById("productGrid").hidden = isDetailOpen;
+  document.getElementById("productDetail").hidden = !isDetailOpen;
+  if (isDetailOpen) {
+    renderProductDetail();
+    return;
+  }
+
   const products = filteredProducts();
   const target = document.getElementById("productGrid");
   document.getElementById("statusMessage").textContent = products.length
@@ -112,22 +155,110 @@ function renderProducts() {
     : "Nenhum produto encontrado com estes filtros.";
 
   target.innerHTML = products.map((product) => `
-    <article class="product-card">
-      <div class="product-media">${productImage(product)}</div>
+    <article class="product-card" data-product-card="${product.id}">
+      <button class="product-open" type="button" data-open-product="${product.id}" aria-label="Abrir ${product.name}">
+        <span class="product-media">${productImage(product)}</span>
+      </button>
       <div class="product-info">
         <h2>${product.name}</h2>
         <div class="product-meta">${product.category} ${product.sku ? `| ${product.sku}` : ""}</div>
+        <p>${productDescription(product)}</p>
         <div class="product-price">
           <strong>${formatMoney(product.salePrice)}</strong>
           <span class="stock-pill">${product.stock} disp.</span>
         </div>
       </div>
-      <button type="button" data-add="${product.id}">Adicionar</button>
+      <div class="product-actions">
+        <button type="button" data-open-product="${product.id}">Ver detalhes</button>
+        <button type="button" data-add="${product.id}">Adicionar</button>
+      </div>
     </article>
   `).join("");
 
+  target.querySelectorAll("[data-open-product]").forEach((button) => {
+    button.onclick = () => openProductDetail(button.dataset.openProduct);
+  });
   target.querySelectorAll("[data-add]").forEach((button) => {
     button.onclick = () => addToCart(button.dataset.add);
+  });
+}
+
+function renderProductDetail() {
+  const product = productById(state.detailProductId);
+  const target = document.getElementById("productDetail");
+  if (!product) {
+    target.innerHTML = `
+      <button class="back-button" type="button" data-back-store>Voltar para a loja</button>
+      <div class="detail-empty">Produto nao encontrado ou indisponivel.</div>
+    `;
+    target.querySelector("[data-back-store]").onclick = () => closeProductDetail();
+    return;
+  }
+
+  const recommendations = state.products
+    .filter((candidate) => candidate.id !== product.id && candidate.category === product.category)
+    .slice(0, 4);
+  const fallbackRecommendations = state.products
+    .filter((candidate) => candidate.id !== product.id)
+    .slice(0, 4);
+  const recommendedProducts = recommendations.length ? recommendations : fallbackRecommendations;
+
+  target.innerHTML = `
+    <button class="back-button" type="button" data-back-store>Voltar para a loja</button>
+    <article class="detail-layout">
+      <section class="detail-gallery">
+        <div class="detail-main-image">${productImage(product)}</div>
+        <div class="detail-thumbs">
+          <button class="thumb active" type="button">${productImage(product)}</button>
+          <button class="thumb" type="button"><span>${product.category}</span></button>
+          <button class="thumb" type="button"><span>${product.sku || "SKU"}</span></button>
+        </div>
+      </section>
+      <section class="detail-info">
+        <div class="detail-meta">${product.category} ${product.sku ? `| ${product.sku}` : ""}</div>
+        <h1>${product.name}</h1>
+        <p class="detail-description">${productDescription(product)}</p>
+        <div class="detail-buy-box">
+          <span class="stock-pill">${product.stock} disponivel(is)</span>
+          <strong>${formatMoney(product.salePrice)}</strong>
+          <div class="detail-actions">
+            <button class="buy-now" type="button" data-buy-now="${product.id}">Comprar agora</button>
+            <button type="button" data-add="${product.id}">Colocar no carrinho</button>
+          </div>
+        </div>
+      </section>
+    </article>
+    <section class="recommendations">
+      <div class="section-title">
+        <h2>Recomendacoes</h2>
+        <span>${product.category}</span>
+      </div>
+      <div class="recommendation-grid">
+        ${recommendedProducts.map((item) => `
+          <article class="recommendation-card">
+            <button type="button" data-open-product="${item.id}">
+              <span class="recommendation-media">${productImage(item)}</span>
+              <strong>${item.name}</strong>
+              <span>${formatMoney(item.salePrice)}</span>
+            </button>
+          </article>
+        `).join("") || '<div class="status-message">Cadastre mais produtos para gerar recomendacoes.</div>'}
+      </div>
+    </section>
+  `;
+
+  target.querySelector("[data-back-store]").onclick = () => closeProductDetail();
+  target.querySelectorAll("[data-add]").forEach((button) => {
+    button.onclick = () => addToCart(button.dataset.add);
+  });
+  target.querySelectorAll("[data-buy-now]").forEach((button) => {
+    button.onclick = () => {
+      addToCart(button.dataset.buyNow);
+      openCart();
+    };
+  });
+  target.querySelectorAll("[data-open-product]").forEach((button) => {
+    button.onclick = () => openProductDetail(button.dataset.openProduct);
   });
 }
 
@@ -215,6 +346,10 @@ function bindEvents() {
   document.getElementById("searchInput").oninput = (event) => {
     state.query = event.target.value;
     renderProducts();
+  };
+  window.onpopstate = () => {
+    state.detailProductId = productIdFromPath();
+    renderAll();
   };
 
   document.getElementById("checkoutForm").onsubmit = async (event) => {
