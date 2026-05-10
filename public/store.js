@@ -161,11 +161,8 @@ function renderProducts() {
       </button>
       <div class="product-info">
         <h2>${product.name}</h2>
-        <div class="product-meta">${product.category} ${product.sku ? `| ${product.sku}` : ""}</div>
-        <p>${productDescription(product)}</p>
         <div class="product-price">
           <strong>${formatMoney(product.salePrice)}</strong>
-          <span class="stock-pill">${product.stock} disp.</span>
         </div>
       </div>
       <div class="product-actions">
