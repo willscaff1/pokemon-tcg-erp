@@ -634,6 +634,9 @@ async function createSale(input) {
     channel: String(input.channel || "Balcão").trim(),
     paymentMethod: String(input.paymentMethod || "").trim(),
     paymentStatus: String(input.paymentStatus || "Pago").trim(),
+    orderStatus: String(input.orderStatus || "Recebido").trim(),
+    trackingCode: String(input.trackingCode || "").trim(),
+    trackingUrl: String(input.trackingUrl || "").trim(),
     notes: String(input.notes || "").trim(),
     items: finalItems,
     grossRevenue: clampMoney(grossRevenue),
@@ -648,6 +651,26 @@ async function createSale(input) {
   };
 
   db.sales.unshift(sale);
+  await writeDb(db);
+  return sale;
+}
+
+async function updateSale(id, input) {
+  const db = await readDb();
+  const sale = db.sales.find((item) => item.id === id);
+  if (!sale) {
+    const error = new Error("Pedido não encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  if (input.paymentStatus !== undefined) sale.paymentStatus = String(input.paymentStatus || "").trim();
+  if (input.orderStatus !== undefined) sale.orderStatus = String(input.orderStatus || "").trim();
+  if (input.trackingCode !== undefined) sale.trackingCode = String(input.trackingCode || "").trim();
+  if (input.trackingUrl !== undefined) sale.trackingUrl = String(input.trackingUrl || "").trim();
+  if (input.notes !== undefined) sale.notes = String(input.notes || "").trim();
+  sale.updatedAt = now();
+
   await writeDb(db);
   return sale;
 }
@@ -690,5 +713,6 @@ module.exports = {
   importProductsFromSpreadsheet,
   createPurchase,
   createSale,
+  updateSale,
   getSummary
 };

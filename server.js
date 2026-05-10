@@ -35,6 +35,7 @@ const {
   importProductsFromSpreadsheet,
   createPurchase,
   createSale,
+  updateSale,
   getSummary
 } = require("./src/storage");
 const { extractProductsFromSpreadsheet } = require("./src/spreadsheetImport");
@@ -176,7 +177,6 @@ function isAdminPath(url) {
 function publicProduct(product) {
   return {
     id: product.id,
-    sku: product.sku || "",
     name: product.name,
     category: product.category || "Produto",
     description: product.description || "",
@@ -261,6 +261,9 @@ async function createStorefrontCheckout(input) {
     channel: "Site proprio",
     paymentMethod,
     paymentStatus: "Pendente",
+    orderStatus: "Recebido",
+    trackingCode: "",
+    trackingUrl: "",
     discount: 0,
     shippingCharged: 0,
     fees: 0,
@@ -425,6 +428,11 @@ async function handleApi(req, res, url) {
     if (method === "POST" && resource === "sales") {
       const input = await readBody(req);
       return sendJson(res, await createSale(input), 201);
+    }
+
+    if (method === "PUT" && resource === "sales" && id) {
+      const input = await readBody(req);
+      return sendJson(res, await updateSale(id, input));
     }
 
     if (method === "GET" && resource === "movements") {

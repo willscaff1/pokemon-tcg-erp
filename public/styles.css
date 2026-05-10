@@ -396,6 +396,32 @@ td {
   margin-top: 10px;
 }
 
+.order-card {
+  display: grid;
+  gap: 10px;
+}
+
+.order-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border: 1px solid #c5cfdd;
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  padding: 8px 12px;
+  font-weight: 750;
+  text-decoration: none;
+}
+
 .inline-actions {
   display: flex;
   flex-wrap: wrap;
@@ -649,6 +675,7 @@ td {
   .cards, .layout.two, .grid-form, .grid-form.compact, .report-grid, .product-form-grid, .supplier-form-grid, .product-filters {
     grid-template-columns: 1fr 1fr;
   }
+  .order-grid { grid-template-columns: 1fr 1fr; }
   .product-form-grid .field-large,
   .supplier-form-grid .field-large { grid-column: 1 / -1; }
   .preview-grid { grid-template-columns: 1fr 1fr; }
@@ -663,6 +690,7 @@ td {
   .cards, .layout.two, .grid-form, .grid-form.compact, .report-grid, .product-form-grid, .supplier-form-grid, .product-filters {
     grid-template-columns: 1fr;
   }
+  .order-grid { grid-template-columns: 1fr; }
   .preview-grid { grid-template-columns: 1fr; }
   nav { grid-template-columns: 1fr 1fr; }
 }

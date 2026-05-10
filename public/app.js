@@ -206,6 +206,7 @@ function renderAll() {
   renderProjection();
   renderSuppliers();
   renderHistories();
+  renderOrders();
   renderSupplierOptions();
   renderProductFormOptions();
   renderProductFilters();
@@ -509,6 +510,88 @@ function renderHistories() {
   `).join("") || '<div class="row-card"><strong>Nenhuma movimentacao.</strong></div>';
 }
 
+function isStoreOrder(sale) {
+  return String(sale.channel || "").toLowerCase() === "site proprio"
+    || String(sale.notes || "").toLowerCase().includes("loja online");
+}
+
+function renderOrders() {
+  const target = document.getElementById("ordersList");
+  if (!target) return;
+
+  const search = document.getElementById("orderSearch");
+  const q = (search?.value || "").toLowerCase().trim();
+  const orders = state.sales.filter((sale) => {
+    if (!isStoreOrder(sale)) return false;
+    const haystack = [
+      sale.id,
+      sale.customer,
+      sale.paymentStatus,
+      sale.orderStatus,
+      sale.trackingCode,
+      sale.trackingUrl,
+      sale.notes,
+      ...(sale.items || []).map((item) => item.productName)
+    ].join(" ").toLowerCase();
+    return !q || haystack.includes(q);
+  });
+
+  target.innerHTML = orders.map((sale) => `
+    <div class="row-card order-card" data-order-card="${sale.id}">
+      <strong>Pedido ${sale.id} | ${sale.customer || "Cliente"} | ${formatMoney(sale.netRevenue)}</strong>
+      <span>${sale.date} | ${sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(", ")}</span>
+      <div class="order-grid">
+        <label>Pagamento
+          <select data-order-field="paymentStatus">
+            ${["Pendente", "Pago", "Cancelado", "Reembolsado"].map((status) => `
+              <option ${String(sale.paymentStatus || "Pendente") === status ? "selected" : ""}>${status}</option>
+            `).join("")}
+          </select>
+        </label>
+        <label>Status do pedido
+          <select data-order-field="orderStatus">
+            ${["Recebido", "Em separacao", "Enviado", "Entregue", "Cancelado"].map((status) => `
+              <option ${String(sale.orderStatus || "Recebido") === status ? "selected" : ""}>${status}</option>
+            `).join("")}
+          </select>
+        </label>
+        <label>Codigo de rastreio
+          <input data-order-field="trackingCode" value="${sale.trackingCode || ""}" placeholder="Ex: AA123456789BR">
+        </label>
+        <label>Link de rastreio
+          <input data-order-field="trackingUrl" value="${sale.trackingUrl || ""}" placeholder="https://...">
+        </label>
+      </div>
+      <label>Observacoes internas / cliente
+        <textarea data-order-field="notes" rows="2">${sale.notes || ""}</textarea>
+      </label>
+      <div class="row-actions">
+        <button class="primary" type="button" data-save-order="${sale.id}">Salvar pedido</button>
+        ${sale.trackingUrl ? `<a class="button-link" href="${sale.trackingUrl}" target="_blank" rel="noopener">Abrir rastreio</a>` : ""}
+      </div>
+    </div>
+  `).join("") || '<div class="row-card"><strong>Nenhum pedido da loja online encontrado.</strong><span>Pedidos feitos pelo site aparecem aqui automaticamente.</span></div>';
+
+  document.querySelectorAll("[data-save-order]").forEach((button) => {
+    button.onclick = () => saveOrder(button.dataset.saveOrder);
+  });
+}
+
+async function saveOrder(id) {
+  const card = document.querySelector(`[data-order-card="${id}"]`);
+  if (!card) return;
+  const payload = {};
+  card.querySelectorAll("[data-order-field]").forEach((field) => {
+    payload[field.dataset.orderField] = field.value;
+  });
+  await api(`/api/sales/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+  toast("Pedido atualizado.");
+  await loadAll();
+}
+
 function refreshItemSelects() {
   document.querySelectorAll('.item-row select[name="productId"]').forEach((select) => {
     const current = select.value;
@@ -809,6 +892,7 @@ function bindTabs() {
     suppliers: ["Fornecedores", "Cadastre contatos, score e dados comerciais dos seus fornecedores."],
     purchase: ["Compras", "Lance compras e atualize estoque/custo médio automaticamente."],
     sale: ["Venda", "Baixe estoque e calcule faturamento, taxas e lucro."],
+    orders: ["Pedidos", "Acompanhe pedidos da loja, pagamento, separacao, envio e rastreio."],
     history: ["Histórico", "Veja compras, vendas e movimentações de estoque."]
   };
   document.querySelectorAll(".nav").forEach((button) => {
@@ -902,6 +986,8 @@ function bindForms() {
   };
 
   document.getElementById("supplierSearch").oninput = renderSuppliers;
+  const orderSearch = document.getElementById("orderSearch");
+  if (orderSearch) orderSearch.oninput = renderOrders;
 
   const purchaseItems = document.getElementById("purchaseItems");
   document.getElementById("addPurchaseItem").onclick = () => {

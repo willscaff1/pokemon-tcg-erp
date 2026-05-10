@@ -22,6 +22,7 @@
         <button class="nav" data-tab="projection">Projeção</button>
         <button class="nav" data-tab="suppliers">Fornecedores</button>
         <button class="nav" data-tab="purchase">Compras</button>
+        <button class="nav" data-tab="orders">Pedidos</button>
         <button class="nav" data-tab="history">Histórico</button>
       </nav>
     </aside>
@@ -253,6 +254,16 @@
             <h2>Movimentações de estoque</h2>
           </div>
           <div id="movementHistory" class="stack"></div>
+        </section>
+      </section>
+
+      <section class="tab" id="orders">
+        <section class="panel">
+          <div class="panel-head split">
+            <h2>Pedidos da loja online</h2>
+            <input id="orderSearch" class="search" placeholder="Buscar por cliente, pedido, produto ou rastreio">
+          </div>
+          <div id="ordersList" class="stack"></div>
         </section>
       </section>
     </main>

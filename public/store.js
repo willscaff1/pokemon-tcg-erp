@@ -23,9 +23,7 @@ function productDescription(product) {
   if (description) return description;
   return [
     `${product.name} disponivel para pronta venda.`,
-    product.category ? `Categoria: ${product.category}.` : "",
-    product.sku ? `SKU: ${product.sku}.` : "",
-    `Estoque atual: ${product.stock} unidade(s).`
+    product.category ? `Categoria: ${product.category}.` : ""
   ].filter(Boolean).join(" ");
 }
 
@@ -114,7 +112,7 @@ function filteredProducts() {
   const query = state.query.toLowerCase().trim();
   return state.products.filter((product) => {
     const matchesCategory = state.activeCategory === "Todos" || product.category === state.activeCategory;
-    const haystack = [product.name, product.sku, product.category].join(" ").toLowerCase();
+    const haystack = [product.name, product.category].join(" ").toLowerCase();
     return matchesCategory && (!query || haystack.includes(query));
   });
 }
@@ -198,15 +196,14 @@ function renderProductDetail() {
         <div class="detail-thumbs">
           <button class="thumb active" type="button">${productImage(product)}</button>
           <button class="thumb" type="button"><span>${product.category}</span></button>
-          <button class="thumb" type="button"><span>${product.sku || "SKU"}</span></button>
         </div>
       </section>
       <section class="detail-info">
-        <div class="detail-meta">${product.category} ${product.sku ? `| ${product.sku}` : ""}</div>
+        <div class="detail-meta">${product.category}</div>
         <h1>${product.name}</h1>
         <p class="detail-description">${productDescription(product)}</p>
         <div class="detail-buy-box">
-          <span class="stock-pill">${product.stock} disponivel(is)</span>
+          <span class="stock-pill">Disponivel para compra</span>
           <strong>${formatMoney(product.salePrice)}</strong>
           <div class="detail-actions">
             <button class="buy-now" type="button" data-buy-now="${product.id}">Comprar agora</button>
@@ -258,7 +255,7 @@ function renderCart() {
       ${product.imageDataUrl ? `<img class="cart-thumb" src="${product.imageDataUrl}" alt="">` : `<div class="cart-thumb"></div>`}
       <div>
         <strong>${product.name}</strong>
-        <span>${formatMoney(product.salePrice)} un. | estoque ${product.stock}</span>
+        <span>${formatMoney(product.salePrice)} un.</span>
         <div class="qty-row">
           <div class="qty-controls">
             <button class="qty-button" type="button" data-dec="${product.id}">-</button>
@@ -293,7 +290,7 @@ function addToCart(id) {
   if (!product) return;
   const current = Number(state.cart[id] || 0);
   if (current >= Number(product.stock || 0)) {
-    toast("Quantidade maxima em estoque para este produto.");
+    toast("Quantidade maxima disponivel para este produto.");
     return;
   }
   state.cart[id] = current + 1;
@@ -311,7 +308,7 @@ function changeQuantity(id, delta) {
   } else if (next <= Number(product.stock || 0)) {
     state.cart[id] = next;
   } else {
-    toast("Quantidade maxima em estoque para este produto.");
+    toast("Quantidade maxima disponivel para este produto.");
   }
   saveCart();
   renderCart();

@@ -441,7 +441,7 @@ input:focus, select:focus, textarea:focus {
 
 .detail-thumbs {
   display: grid;
-  grid-template-columns: repeat(3, 72px);
+  grid-template-columns: repeat(2, 72px);
   gap: 10px;
 }
 
@@ -840,7 +840,7 @@ button:disabled {
   }
 
   .detail-thumbs {
-    grid-template-columns: repeat(3, 64px);
+    grid-template-columns: repeat(2, 64px);
   }
 
   .thumb {
