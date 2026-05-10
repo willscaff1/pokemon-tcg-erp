@@ -18,7 +18,9 @@
     <div class="header-actions">
       <a class="admin-link" href="/admin">Admin</a>
       <button id="cartToggle" class="cart-button" type="button">
-        Carrinho <span id="cartCount">0</span>
+        <span class="cart-icon" aria-hidden="true"></span>
+        <span>Carrinho</span>
+        <strong id="cartCount">0</strong>
       </button>
     </div>
   </header>
@@ -55,7 +57,7 @@
         <strong>Carrinho</strong>
         <span id="cartSubtitle">Nenhum item</span>
       </div>
-      <button id="cartClose" type="button" aria-label="Fechar carrinho">X</button>
+      <button id="cartClose" class="close-button" type="button" aria-label="Fechar carrinho">×</button>
     </div>
 
     <div id="cartItems" class="cart-items"></div>

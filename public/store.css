@@ -78,7 +78,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
 .admin-link,
 .cart-button,
 .checkout-button,
-.product-card button,
 .cart-head button,
 .qty-button {
   min-height: 40px;
@@ -92,23 +91,64 @@ button, a { -webkit-tap-highlight-color: transparent; }
   text-decoration: none;
 }
 
+.admin-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-color: transparent;
+  background: #f4efe7;
+  color: #5b4631;
+}
+
 .cart-button,
-.checkout-button,
-.product-card button {
+.checkout-button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: 9px;
   border-color: var(--accent);
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 10px 22px rgba(210, 38, 48, .22);
 }
 
-.cart-button span {
+.cart-button:hover,
+.checkout-button:hover,
+.buy-now:hover {
+  border-color: var(--accent-dark);
+  background: var(--accent-dark);
+}
+
+.cart-icon {
+  position: relative;
+  width: 18px;
+  height: 16px;
+  border: 2px solid currentColor;
+  border-top: 0;
+  border-radius: 2px 2px 5px 5px;
+}
+
+.cart-icon::before {
+  content: "";
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: -7px;
+  height: 8px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 8px 8px 0 0;
+}
+
+.cart-button strong {
   display: inline-grid;
   place-items: center;
   min-width: 24px;
   min-height: 24px;
-  margin-left: 6px;
   border-radius: 999px;
   background: #fff;
   color: var(--accent-dark);
+  font-size: .82rem;
 }
 
 main {
@@ -227,10 +267,10 @@ input:focus, select:focus, textarea:focus {
 
 .product-card {
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: 12px;
+  grid-template-rows: auto 1fr;
+  gap: 11px;
   min-height: 100%;
-  padding: 12px;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--panel);
@@ -282,13 +322,14 @@ input:focus, select:focus, textarea:focus {
 
 .product-info {
   display: grid;
-  gap: 10px;
+  gap: 8px;
   align-content: start;
+  padding: 2px 2px 4px;
 }
 
 .product-info h2 {
   margin: 0;
-  font-size: 1rem;
+  font-size: .98rem;
   line-height: 1.25;
 }
 
@@ -305,7 +346,8 @@ input:focus, select:focus, textarea:focus {
 }
 
 .product-price strong {
-  font-size: 1.18rem;
+  color: var(--accent-dark);
+  font-size: 1.16rem;
 }
 
 .stock-pill {
@@ -320,13 +362,20 @@ input:focus, select:focus, textarea:focus {
 .detail-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: 10px;
+}
+
+.detail-actions button {
+  min-height: 48px;
+  border-radius: 8px;
+  font-weight: 900;
 }
 
 .detail-actions button:not(.buy-now) {
   border-color: var(--line);
   background: #fff;
   color: var(--ink);
+  box-shadow: none;
 }
 
 .product-detail {
@@ -338,11 +387,11 @@ input:focus, select:focus, textarea:focus {
 .back-button {
   justify-self: start;
   min-height: 40px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--ink);
-  padding: 9px 12px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  background: #f4efe7;
+  color: #5b4631;
+  padding: 9px 14px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -466,6 +515,7 @@ input:focus, select:focus, textarea:focus {
   border-color: var(--accent);
   background: var(--accent);
   color: #fff;
+  box-shadow: 0 12px 26px rgba(210, 38, 48, .24);
 }
 
 .recommendations {
@@ -511,6 +561,13 @@ input:focus, select:focus, textarea:focus {
   text-align: left;
   cursor: pointer;
   text-decoration: none;
+  transition: border-color .16s ease, box-shadow .16s ease, transform .16s ease;
+}
+
+.recommendation-card a:hover {
+  border-color: var(--accent);
+  box-shadow: 0 10px 22px rgba(33, 26, 18, .1);
+  transform: translateY(-2px);
 }
 
 .recommendation-card strong,
@@ -578,6 +635,17 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid var(--line);
 }
 
+.close-button {
+  display: inline-grid;
+  place-items: center;
+  width: 40px;
+  min-width: 40px;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1.35rem;
+  line-height: 1;
+}
+
 .cart-head strong,
 .cart-head span {
   display: block;
@@ -641,7 +709,10 @@ input:focus, select:focus, textarea:focus {
 .qty-button {
   min-width: 34px;
   min-height: 34px;
-  padding: 5px 8px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: .82rem;
+  font-weight: 900;
 }
 
 .checkout-form {
@@ -673,6 +744,22 @@ input:focus, select:focus, textarea:focus {
 
 .cart-total strong {
   font-size: 1.25rem;
+}
+
+.checkout-button {
+  min-height: 48px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 900;
+}
+
+.checkout-button:disabled,
+button:disabled {
+  border-color: #cbd5e1;
+  background: #e5e7eb;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
 }
 
 .checkout-note {
