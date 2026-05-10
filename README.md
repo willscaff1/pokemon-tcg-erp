@@ -4,6 +4,8 @@ Sistema para controlar estoque, compras, vendas, faturamento e lucro de produtos
 
 ## O que já faz
 
+- Loja pública em `/` com catálogo, categorias, busca, carrinho e checkout.
+- Área administrativa em `/admin`, protegida por Basic Auth quando `APP_PASSWORD` estiver configurada.
 - Cadastro de produtos com foto, SKU, variação, fornecedor, categoria, preço de compra, preço de venda, custo médio, margem e estoque mínimo.
 - Lançamento de compras com frete, impostos e taxas rateados no custo médio.
 - Lançamento de vendas com baixa de estoque, taxas, desconto, frete cobrado, preço real da venda, faturamento e lucro.
@@ -50,6 +52,13 @@ Depois abra:
 http://localhost:3000
 ```
 
+Rotas principais:
+
+```text
+http://localhost:3000        loja pública para consumidor
+http://localhost:3000/admin  painel administrativo
+```
+
 Também funciona pelo terminal:
 
 ```bash
@@ -71,9 +80,12 @@ O banco local fica em `data/db.json`. O arquivo `.env` não deve ir para o GitHu
 ```text
 server.js            API HTTP e arquivos estaticos
 src/storage.js       Camada de dados local/Postgres
-public/index.html    Interface
-public/styles.css    Layout
-public/app.js        Regras da tela
+public/store.html    Loja pública
+public/store.css     Layout da loja
+public/store.js      Carrinho e checkout da loja
+public/index.html    Interface administrativa
+public/styles.css    Layout administrativo
+public/app.js        Regras da tela administrativa
 data/db.json         Banco local criado automaticamente
 ```
 
@@ -99,6 +111,18 @@ APP_PASSWORD=sua-senha-forte
 Se `APP_PASSWORD` estiver preenchida, o sistema pede login via Basic Auth. Não publique sem senha.
 
 Quando `DATABASE_URL` existe, o sistema grava os dados no Postgres. Se não existir, grava no `data/db.json` local.
+
+## Loja pública e checkout
+
+A loja pública mostra apenas produtos ativos com estoque maior que zero e preço de venda cadastrado. O checkout cria uma venda no ERP com:
+
+```text
+Canal: Site proprio
+Status: Pendente
+Pagamento: PIX, Cartao ou Combinar pelo WhatsApp
+```
+
+Esta primeira versão ainda não captura pagamento automaticamente. Para pagamento real, configure um provedor como Mercado Pago ou Stripe e adicione as credenciais/callbacks antes de liberar cartão ou PIX automático em produção.
 
 ## Migrar dados para Postgres
 

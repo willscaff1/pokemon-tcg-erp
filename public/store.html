@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scaff TCG Loja</title>
+  <link rel="stylesheet" href="/store.css">
+</head>
+<body>
+  <header class="store-header">
+    <a class="brand" href="/">
+      <span class="brand-mark"></span>
+      <span>
+        <strong id="storeName">Scaff TCG</strong>
+        <small>Pokemon TCG, colecionaveis e acessorios</small>
+      </span>
+    </a>
+    <div class="header-actions">
+      <a class="admin-link" href="/admin">Admin</a>
+      <button id="cartToggle" class="cart-button" type="button">
+        Carrinho <span id="cartCount">0</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Loja online</p>
+        <h1>Produtos disponiveis para pronta venda.</h1>
+        <p>Monte seu carrinho, envie o pedido e aguarde a confirmacao do pagamento.</p>
+      </div>
+      <div class="hero-panel">
+        <strong id="heroProductCount">0 produtos</strong>
+        <span>Estoque sincronizado com o ERP.</span>
+      </div>
+    </section>
+
+    <section class="toolbar" aria-label="Filtros de produtos">
+      <div class="search-wrap">
+        <input id="searchInput" type="search" placeholder="Buscar produto, SKU ou categoria">
+      </div>
+      <div id="categoryFilters" class="category-filters"></div>
+    </section>
+
+    <section id="statusMessage" class="status-message"></section>
+    <section id="productGrid" class="product-grid"></section>
+  </main>
+
+  <aside id="cartDrawer" class="cart-drawer" aria-hidden="true">
+    <div class="cart-head">
+      <div>
+        <strong>Carrinho</strong>
+        <span id="cartSubtitle">Nenhum item</span>
+      </div>
+      <button id="cartClose" type="button" aria-label="Fechar carrinho">X</button>
+    </div>
+
+    <div id="cartItems" class="cart-items"></div>
+
+    <form id="checkoutForm" class="checkout-form">
+      <div class="cart-total">
+        <span>Total</span>
+        <strong id="cartTotal">R$ 0,00</strong>
+      </div>
+
+      <label>Nome completo
+        <input name="customerName" autocomplete="name" required>
+      </label>
+      <label>WhatsApp
+        <input name="customerPhone" autocomplete="tel" required>
+      </label>
+      <label>E-mail
+        <input name="customerEmail" type="email" autocomplete="email">
+      </label>
+      <label>Pagamento
+        <select name="paymentMethod">
+          <option>PIX</option>
+          <option>Cartao</option>
+          <option>Combinar pelo WhatsApp</option>
+        </select>
+      </label>
+      <label>Observacoes
+        <textarea name="notes" rows="3" placeholder="Retirada, envio, cupom ou comentario"></textarea>
+      </label>
+
+      <button class="checkout-button" type="submit">Finalizar pedido</button>
+      <p class="checkout-note">O pedido fica pendente ate a confirmacao do pagamento.</p>
+    </form>
+  </aside>
+
+  <div id="drawerBackdrop" class="drawer-backdrop"></div>
+  <div id="toast" class="toast" role="status"></div>
+  <script src="/store.js"></script>
+</body>
+</html>

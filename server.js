@@ -44,6 +44,7 @@ const port = Number(process.env.PORT || 3000);
 const publicDir = path.join(__dirname, "public");
 const appUser = process.env.APP_USER || "admin";
 const appPassword = process.env.APP_PASSWORD || "";
+const storeName = process.env.STORE_NAME || "Scaff TCG";
 
 const mimeTypes = {
   ".html": "text/html; charset=utf-8",
@@ -121,9 +122,26 @@ function readBody(req, maxBytes = 2_000_000) {
   });
 }
 
+function resolveStaticPath(url) {
+  let requested = url.pathname;
+  if (requested === "/" || requested === "/index.html") {
+    requested = "/store.html";
+  }
+  if (requested === "/admin") {
+    requested = "/admin/";
+  }
+  if (requested === "/admin/") {
+    requested = "/index.html";
+  }
+  if (requested.startsWith("/admin/")) {
+    requested = requested.slice("/admin".length);
+  }
+
+  return path.normalize(path.join(publicDir, requested));
+}
+
 function serveStatic(req, res, url) {
-  const requested = url.pathname === "/" ? "/index.html" : url.pathname;
-  const filePath = path.normalize(path.join(publicDir, requested));
+  const filePath = resolveStaticPath(url);
 
   if (!filePath.startsWith(publicDir)) {
     send(res, 403, "Acesso negado.");
@@ -143,6 +161,127 @@ function serveStatic(req, res, url) {
   fs.createReadStream(filePath).pipe(res);
 }
 
+function isAdminPath(url) {
+  if (url.pathname === "/admin" || url.pathname.startsWith("/admin/")) return true;
+  if (!url.pathname.startsWith("/api/")) return false;
+
+  const publicApi = [
+    "/api/health",
+    "/api/storefront",
+    "/api/storefront/checkout"
+  ];
+  return !publicApi.includes(url.pathname);
+}
+
+function publicProduct(product) {
+  return {
+    id: product.id,
+    sku: product.sku || "",
+    name: product.name,
+    category: product.category || "Produto",
+    imageDataUrl: product.imageDataUrl || "",
+    salePrice: Number(product.salePrice || 0),
+    stock: Number(product.stock || 0)
+  };
+}
+
+async function getStorefront() {
+  const db = await readDb();
+  const products = db.products
+    .filter((product) => product.active !== false)
+    .filter((product) => Number(product.stock || 0) > 0)
+    .filter((product) => Number(product.salePrice || 0) > 0)
+    .map(publicProduct)
+    .sort((a, b) => a.name.localeCompare(b.name));
+  const categories = [...new Set(products.map((product) => product.category).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b));
+
+  return {
+    storeName: db.meta?.storeName || storeName,
+    categories,
+    products
+  };
+}
+
+async function createStorefrontCheckout(input) {
+  const db = await readDb();
+  const items = Array.isArray(input.items) ? input.items : [];
+  const cleanItems = items
+    .map((item) => ({
+      productId: String(item.productId || ""),
+      quantity: Math.max(0, Number(item.quantity || 0))
+    }))
+    .filter((item) => item.productId && item.quantity > 0);
+
+  if (!cleanItems.length) {
+    const error = new Error("Carrinho vazio.");
+    error.status = 400;
+    throw error;
+  }
+
+  const saleItems = cleanItems.map((item) => {
+    const product = db.products.find((candidate) => candidate.id === item.productId);
+    if (!product || product.active === false || Number(product.stock || 0) <= 0) {
+      const error = new Error("Produto indisponivel no estoque.");
+      error.status = 400;
+      throw error;
+    }
+    if (Number(product.stock || 0) < item.quantity) {
+      const error = new Error(`Estoque insuficiente para ${product.name}.`);
+      error.status = 400;
+      throw error;
+    }
+    if (Number(product.salePrice || 0) <= 0) {
+      const error = new Error(`Produto sem preco de venda: ${product.name}.`);
+      error.status = 400;
+      throw error;
+    }
+    return {
+      productId: product.id,
+      quantity: item.quantity,
+      unitPrice: Number(product.salePrice || 0)
+    };
+  });
+
+  const customerName = String(input.customerName || "").trim();
+  const customerEmail = String(input.customerEmail || "").trim();
+  const customerPhone = String(input.customerPhone || "").trim();
+  const paymentMethod = String(input.paymentMethod || "PIX").trim();
+
+  if (!customerName || !customerPhone) {
+    const error = new Error("Informe nome e WhatsApp para finalizar o pedido.");
+    error.status = 400;
+    throw error;
+  }
+
+  const sale = await createSale({
+    date: new Date().toISOString().slice(0, 10),
+    customer: customerName,
+    channel: "Site proprio",
+    paymentMethod,
+    paymentStatus: "Pendente",
+    discount: 0,
+    shippingCharged: 0,
+    fees: 0,
+    notes: [
+      "Pedido criado pela loja online.",
+      customerEmail ? `Email: ${customerEmail}` : "",
+      customerPhone ? `WhatsApp: ${customerPhone}` : "",
+      input.notes ? `Observacoes: ${String(input.notes).trim()}` : ""
+    ].filter(Boolean).join(" | "),
+    items: saleItems
+  });
+
+  return {
+    ok: true,
+    orderId: sale.id,
+    paymentStatus: sale.paymentStatus,
+    paymentMethod: sale.paymentMethod,
+    total: sale.netRevenue,
+    message: "Pedido recebido. Pagamento pendente de confirmacao."
+  };
+}
+
 async function handleApi(req, res, url) {
   const method = req.method;
   const parts = url.pathname.split("/").filter(Boolean);
@@ -152,6 +291,15 @@ async function handleApi(req, res, url) {
   try {
     if (method === "GET" && resource === "health") {
       return sendJson(res, { ok: true, app: "scaff-tcg" });
+    }
+
+    if (method === "GET" && resource === "storefront") {
+      return sendJson(res, await getStorefront());
+    }
+
+    if (method === "POST" && resource === "storefront" && id === "checkout") {
+      const input = await readBody(req);
+      return sendJson(res, await createStorefrontCheckout(input), 201);
     }
 
     if (method === "GET" && resource === "summary") {
@@ -310,7 +458,7 @@ async function handleApi(req, res, url) {
 
 const server = http.createServer((req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`);
-  if (url.pathname !== "/api/health" && !requireAuth(req, res)) return;
+  if (isAdminPath(url) && !requireAuth(req, res)) return;
   if (url.pathname.startsWith("/api/")) {
     handleApi(req, res, url);
     return;
