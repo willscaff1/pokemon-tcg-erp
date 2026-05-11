@@ -4,6 +4,7 @@ const state = {
   categories: [],
   purchases: [],
   sales: [],
+  leads: [],
   movements: [],
   summary: {},
   settings: {},
@@ -179,13 +180,14 @@ function collectItems(container, priceName) {
 }
 
 async function loadAll() {
-  const [summary, products, suppliers, categories, purchases, sales, movements, settings] = await Promise.all([
+  const [summary, products, suppliers, categories, purchases, sales, leads, movements, settings] = await Promise.all([
     api("/api/summary"),
     api("/api/products"),
     api("/api/suppliers"),
     api("/api/categories"),
     api("/api/purchases"),
     api("/api/sales"),
+    api("/api/leads"),
     api("/api/movements"),
     api("/api/settings")
   ]);
@@ -195,6 +197,7 @@ async function loadAll() {
   state.categories = categories;
   state.purchases = purchases;
   state.sales = sales;
+  state.leads = leads;
   state.movements = movements;
   state.settings = settings;
   renderAll();
@@ -207,6 +210,7 @@ function renderAll() {
   renderSuppliers();
   renderHistories();
   renderOrders();
+  renderLeads();
   renderSupplierOptions();
   renderProductFormOptions();
   renderProductFilters();
@@ -592,6 +596,46 @@ async function saveOrder(id) {
   await loadAll();
 }
 
+function renderLeads() {
+  const target = document.getElementById("leadsList");
+  if (!target) return;
+
+  const search = document.getElementById("leadSearch");
+  const q = (search?.value || "").toLowerCase().trim();
+  const leads = state.leads.filter((lead) => {
+    const haystack = [
+      lead.name,
+      lead.email,
+      lead.phone,
+      lead.zipCode,
+      lead.street,
+      lead.neighborhood,
+      lead.city,
+      lead.state,
+      lead.source
+    ].join(" ").toLowerCase();
+    return !q || haystack.includes(q);
+  });
+
+  target.innerHTML = leads.map((lead) => {
+    const address = [
+      lead.street,
+      lead.number,
+      lead.neighborhood,
+      lead.city,
+      lead.state,
+      lead.zipCode
+    ].filter(Boolean).join(" | ");
+    return `
+      <div class="row-card lead-card">
+        <strong>${lead.name || "Lead"} | ${lead.phone || "sem celular"}</strong>
+        <span>${lead.email || "sem email"}${address ? ` | ${address}` : ""}</span>
+        <span>Origem: ${lead.source || "Site"} | Cadastro: ${String(lead.createdAt || "").slice(0, 10)}</span>
+      </div>
+    `;
+  }).join("") || '<div class="row-card"><strong>Nenhum lead cadastrado.</strong><span>Cadastros feitos na loja aparecem aqui automaticamente.</span></div>';
+}
+
 function refreshItemSelects() {
   document.querySelectorAll('.item-row select[name="productId"]').forEach((select) => {
     const current = select.value;
@@ -893,6 +937,7 @@ function bindTabs() {
     purchase: ["Compras", "Lance compras e atualize estoque/custo médio automaticamente."],
     sale: ["Venda", "Baixe estoque e calcule faturamento, taxas e lucro."],
     orders: ["Pedidos", "Acompanhe pedidos da loja, pagamento, separacao, envio e rastreio."],
+    leads: ["Leads", "Contatos cadastrados pelo site para venda e atendimento."],
     history: ["Histórico", "Veja compras, vendas e movimentações de estoque."]
   };
   document.querySelectorAll(".nav").forEach((button) => {
@@ -988,6 +1033,8 @@ function bindForms() {
   document.getElementById("supplierSearch").oninput = renderSuppliers;
   const orderSearch = document.getElementById("orderSearch");
   if (orderSearch) orderSearch.oninput = renderOrders;
+  const leadSearch = document.getElementById("leadSearch");
+  if (leadSearch) leadSearch.oninput = renderLeads;
 
   const purchaseItems = document.getElementById("purchaseItems");
   document.getElementById("addPurchaseItem").onclick = () => {

@@ -17,6 +17,18 @@ const defaultCategories = [
   "Acessorio",
   "Outro"
 ];
+const defaultStoreCategories = [
+  "Todos",
+  "Booster",
+  "Display",
+  "Elite Trainer Box",
+  "Blister",
+  "Coleções especiais",
+  "Cartas avulsas",
+  "Acessórios",
+  "Novidades",
+  "Promoções"
+];
 
 const initialDb = () => ({
   meta: {
@@ -30,6 +42,7 @@ const initialDb = () => ({
   categories: [],
   purchases: [],
   sales: [],
+  leads: [],
   movements: []
 });
 
@@ -76,6 +89,7 @@ function normalizeDb(db = {}) {
     categories: db.categories || [],
     purchases: db.purchases || [],
     sales: db.sales || [],
+    leads: db.leads || [],
     movements: db.movements || []
   };
 }
@@ -675,6 +689,38 @@ async function updateSale(id, input) {
   return sale;
 }
 
+async function createLead(input) {
+  const db = await readDb();
+  const name = String(input.name || "").trim();
+  const email = String(input.email || "").trim();
+  const phone = String(input.phone || "").trim();
+  if (!name || (!email && !phone)) {
+    const error = new Error("Informe nome e pelo menos e-mail ou celular.");
+    error.status = 400;
+    throw error;
+  }
+
+  const lead = {
+    id: createId("lead"),
+    name,
+    email,
+    phone,
+    zipCode: String(input.zipCode || "").trim(),
+    street: String(input.street || "").trim(),
+    number: String(input.number || "").trim(),
+    complement: String(input.complement || "").trim(),
+    neighborhood: String(input.neighborhood || "").trim(),
+    city: String(input.city || "").trim(),
+    state: String(input.state || "").trim(),
+    source: String(input.source || "Site").trim(),
+    createdAt: now()
+  };
+
+  db.leads.unshift(lead);
+  await writeDb(db);
+  return lead;
+}
+
 async function getSummary() {
   const db = await readDb();
   const activeProducts = db.products.filter((product) => product.active !== false);
@@ -714,5 +760,7 @@ module.exports = {
   createPurchase,
   createSale,
   updateSale,
+  createLead,
+  defaultStoreCategories,
   getSummary
 };

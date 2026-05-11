@@ -27,7 +27,6 @@
   <main>
     <section class="hero">
       <div>
-        <p class="eyebrow">Loja online</p>
         <h1>Todos os produtos anunciados.</h1>
         <p>Clique em qualquer produto para ver fotos, descricao, preco e opcoes de compra.</p>
       </div>
@@ -42,12 +41,59 @@
         <input id="searchInput" type="search" placeholder="Buscar produto ou categoria">
       </div>
       <div id="categoryFilters" class="category-filters"></div>
+      <select id="sortSelect" class="sort-select" aria-label="Ordenar produtos">
+        <option value="featured">Destaques</option>
+        <option value="price-asc">Menor preco</option>
+        <option value="price-desc">Maior preco</option>
+        <option value="name-asc">Nome A-Z</option>
+      </select>
     </section>
 
     <section id="statusMessage" class="status-message"></section>
     <section id="productGrid" class="product-grid"></section>
 
     <section id="productDetail" class="product-detail" hidden></section>
+
+    <section id="leadSection" class="lead-section">
+      <div>
+        <p class="eyebrow">Cadastro</p>
+        <h2>Receba novidades e ofertas</h2>
+        <p>Cadastre seus dados para facilitar pedidos, envio e contato.</p>
+      </div>
+      <form id="leadForm" class="lead-form">
+        <label>Nome
+          <input name="name" autocomplete="name" required>
+        </label>
+        <label>E-mail
+          <input name="email" type="email" autocomplete="email">
+        </label>
+        <label>Celular
+          <input name="phone" autocomplete="tel">
+        </label>
+        <label>CEP
+          <input name="zipCode" id="leadZipCode" autocomplete="postal-code" inputmode="numeric">
+        </label>
+        <label>Rua
+          <input name="street" autocomplete="address-line1">
+        </label>
+        <label>Número
+          <input name="number" autocomplete="address-line2">
+        </label>
+        <label>Bairro
+          <input name="neighborhood">
+        </label>
+        <label>Cidade
+          <input name="city" autocomplete="address-level2">
+        </label>
+        <label>UF
+          <input name="state" maxlength="2" autocomplete="address-level1">
+        </label>
+        <label class="wide">Complemento
+          <input name="complement" autocomplete="address-line3">
+        </label>
+        <button class="checkout-button" type="submit">Cadastrar</button>
+      </form>
+    </section>
   </main>
 
   <aside id="cartDrawer" class="cart-drawer" aria-hidden="true">

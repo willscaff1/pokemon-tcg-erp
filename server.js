@@ -36,6 +36,8 @@ const {
   createPurchase,
   createSale,
   updateSale,
+  createLead,
+  defaultStoreCategories,
   getSummary
 } = require("./src/storage");
 const { extractProductsFromSpreadsheet } = require("./src/spreadsheetImport");
@@ -169,6 +171,7 @@ function isAdminPath(url) {
   const publicApi = [
     "/api/health",
     "/api/storefront",
+    "/api/storefront/leads",
     "/api/storefront/checkout"
   ];
   return !publicApi.includes(url.pathname);
@@ -194,7 +197,10 @@ async function getStorefront() {
     .filter((product) => Number(product.salePrice || 0) > 0)
     .map(publicProduct)
     .sort((a, b) => a.name.localeCompare(b.name));
-  const categories = [...new Set(products.map((product) => product.category).filter(Boolean))]
+  const categories = [...new Set([
+    ...defaultStoreCategories,
+    ...products.map((product) => product.category).filter(Boolean)
+  ])].filter((category) => category !== "Todos")
     .sort((a, b) => a.localeCompare(b));
 
   return {
@@ -304,6 +310,11 @@ async function handleApi(req, res, url) {
     if (method === "POST" && resource === "storefront" && id === "checkout") {
       const input = await readBody(req);
       return sendJson(res, await createStorefrontCheckout(input), 201);
+    }
+
+    if (method === "POST" && resource === "storefront" && id === "leads") {
+      const input = await readBody(req);
+      return sendJson(res, await createLead(input), 201);
     }
 
     if (method === "GET" && resource === "summary") {
@@ -425,6 +436,11 @@ async function handleApi(req, res, url) {
       return sendJson(res, db.sales);
     }
 
+    if (method === "GET" && resource === "leads") {
+      const db = await readDb();
+      return sendJson(res, db.leads || []);
+    }
+
     if (method === "POST" && resource === "sales") {
       const input = await readBody(req);
       return sendJson(res, await createSale(input), 201);
@@ -453,6 +469,7 @@ async function handleApi(req, res, url) {
         categories: input.categories || [],
         purchases: input.purchases || [],
         sales: input.sales || [],
+        leads: input.leads || [],
         movements: input.movements || []
       };
       await writeDb(next);

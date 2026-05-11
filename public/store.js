@@ -3,6 +3,7 @@ const state = {
   categories: [],
   activeCategory: "Todos",
   query: "",
+  sort: "featured",
   detailProductId: productIdFromPath(),
   cart: loadCart()
 };
@@ -110,10 +111,17 @@ function productImage(product, className = "") {
 
 function filteredProducts() {
   const query = state.query.toLowerCase().trim();
-  return state.products.filter((product) => {
+  const products = state.products.filter((product) => {
     const matchesCategory = state.activeCategory === "Todos" || product.category === state.activeCategory;
     const haystack = [product.name, product.category].join(" ").toLowerCase();
     return matchesCategory && (!query || haystack.includes(query));
+  });
+
+  return products.sort((a, b) => {
+    if (state.sort === "price-asc") return Number(a.salePrice || 0) - Number(b.salePrice || 0);
+    if (state.sort === "price-desc") return Number(b.salePrice || 0) - Number(a.salePrice || 0);
+    if (state.sort === "name-asc") return String(a.name || "").localeCompare(String(b.name || ""), "pt-BR");
+    return 0;
   });
 }
 
@@ -141,6 +149,7 @@ function renderProducts() {
   document.getElementById("statusMessage").hidden = isDetailOpen;
   document.getElementById("productGrid").hidden = isDetailOpen;
   document.getElementById("productDetail").hidden = !isDetailOpen;
+  document.getElementById("leadSection").hidden = isDetailOpen;
   if (isDetailOpen) {
     renderProductDetail();
     return;
@@ -328,9 +337,31 @@ function bindEvents() {
     state.query = event.target.value;
     renderProducts();
   };
+  document.getElementById("sortSelect").onchange = (event) => {
+    state.sort = event.target.value;
+    renderProducts();
+  };
   window.onpopstate = () => {
     state.detailProductId = productIdFromPath();
     renderAll();
+  };
+
+  document.getElementById("leadZipCode").onblur = fillAddressFromCep;
+  document.getElementById("leadForm").onsubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      await api("/api/storefront/leads", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      form.reset();
+      toast("Cadastro realizado.");
+    } catch (error) {
+      toast(error.message);
+    }
   };
 
   document.getElementById("checkoutForm").onsubmit = async (event) => {
@@ -363,6 +394,25 @@ function bindEvents() {
       toast(error.message);
     }
   };
+}
+
+async function fillAddressFromCep(event) {
+  const cep = String(event.currentTarget.value || "").replace(/\D/g, "");
+  if (cep.length !== 8) return;
+
+  try {
+    const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await response.json();
+    if (!response.ok || data.erro) throw new Error("CEP nao encontrado.");
+
+    const form = document.getElementById("leadForm");
+    form.street.value = data.logradouro || form.street.value;
+    form.neighborhood.value = data.bairro || form.neighborhood.value;
+    form.city.value = data.localidade || form.city.value;
+    form.state.value = data.uf || form.state.value;
+  } catch (error) {
+    toast(error.message);
+  }
 }
 
 async function loadStorefront() {
