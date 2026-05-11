@@ -892,6 +892,23 @@ button:disabled {
   cursor: pointer;
 }
 
+.lgpd-check {
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  color: var(--muted);
+  line-height: 1.35;
+}
+
+.lgpd-check input {
+  width: auto;
+  margin-top: 3px;
+}
+
+.lgpd-check a {
+  color: var(--accent-dark);
+  font-weight: 900;
+}
+
 .account-content {
   display: grid;
   gap: 10px;
@@ -961,6 +978,33 @@ button:disabled {
 .account-actions {
   display: flex;
   flex-wrap: wrap;
+  gap: 10px;
+}
+
+.wallet-default {
+  display: grid;
+  gap: 4px;
+  padding: 14px;
+  border: 1px solid #b7dfc4;
+  border-radius: 8px;
+  background: #ecfdf3;
+  color: #14532d;
+}
+
+.wallet-default span {
+  color: #166534;
+  font-size: .92rem;
+}
+
+.card-form {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfaf7;
+}
+
+.saved-cards {
+  display: grid;
   gap: 10px;
 }
 

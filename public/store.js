@@ -7,6 +7,7 @@ const state = {
   detailProductId: productIdFromPath(),
   accountPage: accountPageFromPath(),
   customer: loadCustomer(),
+  cards: loadCards(),
   cart: loadCart()
 };
 
@@ -62,6 +63,19 @@ function saveCustomer(customer) {
   } else {
     localStorage.removeItem("scaff-store-customer");
   }
+}
+
+function loadCards() {
+  try {
+    return JSON.parse(localStorage.getItem("scaff-store-cards") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function saveCards(cards) {
+  state.cards = cards;
+  localStorage.setItem("scaff-store-cards", JSON.stringify(cards));
 }
 
 function toast(message) {
@@ -135,6 +149,17 @@ function openLogin() {
 
 function openRegister() {
   openAuthModal("registerModal");
+}
+
+function openEditProfile() {
+  if (!state.customer) return openLogin();
+  const form = document.getElementById("editProfileForm");
+  form.reset();
+  for (const [key, value] of Object.entries(state.customer)) {
+    if (form.elements[key]) form.elements[key].value = value || "";
+  }
+  form.lgpdAccepted.checked = false;
+  openAuthModal("editProfileModal");
 }
 
 function toggleProfileMenu() {
@@ -414,12 +439,37 @@ function renderAccountPage() {
   const body = page === "pedidos"
     ? '<div class="account-empty">Seus pedidos finalizados aparecem aqui nas proximas etapas da loja.</div>'
     : page === "carteira"
-      ? '<div class="account-empty">Carteira, cupons e formas de pagamento serao conectados aqui.</div>'
+      ? `
+        <div class="wallet-default">
+          <strong>PIX</strong>
+          <span>Forma de pagamento padrao para compras no site.</span>
+        </div>
+        <form id="cardForm" class="auth-form card-form">
+          <label>Nome impresso no cartao<input name="holder" required></label>
+          <label>Numero do cartao<input name="number" inputmode="numeric" autocomplete="cc-number" required></label>
+          <div class="profile-address-grid">
+            <label>Validade<input name="expiry" placeholder="MM/AA" autocomplete="cc-exp" required></label>
+            <label>Bandeira<input name="brand" placeholder="Visa"></label>
+          </div>
+          <button class="secondary-button" type="submit">Cadastrar cartao</button>
+          <p class="checkout-note">Por seguranca, o CVV nao e salvo. Guarde apenas cartoes do titular.</p>
+        </form>
+        <div class="saved-cards">
+          ${state.cards.map((card) => `
+            <div class="account-row">
+              <span>${card.brand || "Cartao"} final ${card.last4}</span>
+              <strong>${card.holder || "Titular"} | ${card.expiry || ""}</strong>
+            </div>
+          `).join("") || '<div class="account-empty">Nenhum cartao cadastrado.</div>'}
+        </div>
+      `
       : `
         <div class="account-row"><span>Nome</span><strong>${customer.name || "-"}</strong></div>
         <div class="account-row"><span>E-mail</span><strong>${customer.email || "-"}</strong></div>
         <div class="account-row"><span>Celular</span><strong>${customer.phone || "-"}</strong></div>
+        <div class="account-row"><span>CPF</span><strong>${customer.cpf || "-"}</strong></div>
         <div class="account-row"><span>Endereco</span><strong>${address || "-"}</strong></div>
+        <button class="checkout-button" type="button" data-edit-profile>Editar perfil</button>
       `;
 
   target.innerHTML = `
@@ -442,6 +492,30 @@ function renderAccountPage() {
     </div>
   `;
   target.querySelector("[data-back-store]").onclick = () => closeProductDetail();
+  const editProfileButton = target.querySelector("[data-edit-profile]");
+  if (editProfileButton) editProfileButton.onclick = openEditProfile;
+  const cardForm = target.querySelector("#cardForm");
+  if (cardForm) {
+    cardForm.onsubmit = (event) => {
+      event.preventDefault();
+      const payload = Object.fromEntries(new FormData(cardForm).entries());
+      const digits = String(payload.number || "").replace(/\D/g, "");
+      if (digits.length < 12) return toast("Informe um numero de cartao valido.");
+      saveCards([
+        ...state.cards,
+        {
+          id: `card_${Date.now()}`,
+          holder: String(payload.holder || "").trim(),
+          brand: String(payload.brand || "").trim(),
+          expiry: String(payload.expiry || "").trim(),
+          last4: digits.slice(-4)
+        }
+      ]);
+      cardForm.reset();
+      renderAccountPage();
+      toast("Cartao cadastrado.");
+    };
+  }
 }
 
 function addToCart(id) {
@@ -526,6 +600,7 @@ function bindEvents() {
   };
 
   document.getElementById("registerZipCode").onblur = fillAddressFromCep;
+  document.getElementById("editZipCode").onblur = fillAddressFromCep;
   document.getElementById("loginForm").onsubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
@@ -560,6 +635,27 @@ function bindEvents() {
       renderAll();
       closeAuthModals();
       toast("Cadastro realizado.");
+    } catch (error) {
+      toast(error.message);
+    }
+  };
+  document.getElementById("editProfileForm").onsubmit = async (event) => {
+    event.preventDefault();
+    if (!state.customer) return openLogin();
+    const form = event.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
+    payload.lgpdAccepted = form.lgpdAccepted.checked;
+
+    try {
+      const customer = await api(`/api/storefront/customers/${state.customer.id}`, {
+        method: "PUT",
+        body: JSON.stringify(payload)
+      });
+      saveCustomer(customer);
+      form.reset();
+      renderAll();
+      closeAuthModals();
+      toast("Perfil atualizado.");
     } catch (error) {
       toast(error.message);
     }
@@ -615,7 +711,7 @@ async function fillAddressFromCep(event) {
     const data = await response.json();
     if (!response.ok || data.erro) throw new Error("CEP nao encontrado.");
 
-    const form = document.getElementById("registerForm");
+    const form = event.currentTarget.closest("form");
     form.street.value = data.logradouro || form.street.value;
     form.neighborhood.value = data.bairro || form.neighborhood.value;
     form.city.value = data.localidade || form.city.value;

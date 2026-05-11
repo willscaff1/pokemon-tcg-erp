@@ -111,6 +111,9 @@
         <label>Celular
           <input name="phone" autocomplete="tel" required>
         </label>
+        <label>CPF
+          <input name="cpf" autocomplete="off" inputmode="numeric" required>
+        </label>
         <label>Senha
           <input name="password" type="password" autocomplete="new-password" minlength="6" required>
         </label>
@@ -139,7 +142,46 @@
         <label>Complemento
           <input name="complement" autocomplete="address-line3">
         </label>
+        <label class="lgpd-check">
+          <input name="lgpdAccepted" type="checkbox" required>
+          Li e aceito o uso dos meus dados conforme a LGPD. <a href="https://www.gov.br/esporte/pt-br/acesso-a-informacao/lgpd" target="_blank" rel="noopener">Ver lei LGPD</a>
+        </label>
         <button class="checkout-button" type="submit">Cadastrar e entrar</button>
+      </form>
+    </section>
+  </div>
+
+  <div id="editProfileModal" class="auth-modal" aria-hidden="true">
+    <div class="auth-backdrop" data-close-auth></div>
+    <section class="auth-panel" role="dialog" aria-modal="true" aria-labelledby="editProfileTitle">
+      <div class="auth-head">
+        <div>
+          <h2 id="editProfileTitle">Editar perfil</h2>
+          <p>Atualize seus dados de cadastro.</p>
+        </div>
+        <button class="close-button" type="button" data-close-auth aria-label="Fechar edicao">x</button>
+      </div>
+      <form id="editProfileForm" class="auth-form">
+        <label>Nome completo<input name="name" autocomplete="name" required></label>
+        <label>E-mail<input name="email" type="email" autocomplete="email" required></label>
+        <label>Telefone<input name="phone" autocomplete="tel" required></label>
+        <label>CPF<input name="cpf" autocomplete="off" inputmode="numeric" required></label>
+        <div class="profile-address-grid">
+          <label>CEP<input name="zipCode" id="editZipCode" autocomplete="postal-code" inputmode="numeric"></label>
+          <label>Numero<input name="number" autocomplete="address-line2"></label>
+        </div>
+        <label>Rua<input name="street" autocomplete="address-line1"></label>
+        <label>Bairro<input name="neighborhood"></label>
+        <div class="profile-address-grid">
+          <label>Cidade<input name="city" autocomplete="address-level2"></label>
+          <label>UF<input name="state" maxlength="2" autocomplete="address-level1"></label>
+        </div>
+        <label>Complemento<input name="complement" autocomplete="address-line3"></label>
+        <label class="lgpd-check">
+          <input name="lgpdAccepted" type="checkbox" required>
+          Confirmo a atualizacao conforme a LGPD. <a href="https://www.gov.br/esporte/pt-br/acesso-a-informacao/lgpd" target="_blank" rel="noopener">Ver lei LGPD</a>
+        </label>
+        <button class="checkout-button" type="submit">Salvar alteracoes</button>
       </form>
     </section>
   </div>

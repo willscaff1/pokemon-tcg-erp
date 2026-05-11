@@ -50,6 +50,7 @@ const initialDb = () => ({
   purchases: [],
   sales: [],
   leads: [],
+  coupons: [],
   movements: []
 });
 
@@ -97,6 +98,7 @@ function normalizeDb(db = {}) {
     purchases: db.purchases || [],
     sales: db.sales || [],
     leads: db.leads || [],
+    coupons: db.coupons || [],
     movements: db.movements || []
   };
 }
@@ -729,6 +731,7 @@ async function createLead(input) {
       name,
       email,
       phone,
+      cpf: String(input.cpf || "").trim(),
       zipCode: String(input.zipCode || "").trim(),
       street: String(input.street || "").trim(),
       number: String(input.number || "").trim(),
@@ -739,6 +742,7 @@ async function createLead(input) {
       source: String(input.source || existing.source || "Site").trim(),
       updatedAt: now()
     });
+    if (input.lgpdAccepted) existing.lgpdAcceptedAt = now();
     if (password) existing.passwordHash = hashPassword(password);
     await writeDb(db);
     return publicCustomer(existing);
@@ -749,6 +753,7 @@ async function createLead(input) {
     name,
     email,
     phone,
+    cpf: String(input.cpf || "").trim(),
     zipCode: String(input.zipCode || "").trim(),
     street: String(input.street || "").trim(),
     number: String(input.number || "").trim(),
@@ -758,6 +763,7 @@ async function createLead(input) {
     state: String(input.state || "").trim(),
     source: String(input.source || "Site").trim(),
     passwordHash: password ? hashPassword(password) : "",
+    lgpdAcceptedAt: input.lgpdAccepted ? now() : "",
     createdAt: now()
   };
 
@@ -784,6 +790,66 @@ async function loginCustomer(input) {
   }
 
   return publicCustomer(customer);
+}
+
+async function updateCustomer(id, input) {
+  const db = await readDb();
+  const customer = db.leads.find((item) => item.id === id);
+  if (!customer) {
+    const error = new Error("Cliente nao encontrado.");
+    error.status = 404;
+    throw error;
+  }
+
+  const fields = ["name", "email", "phone", "cpf", "zipCode", "street", "number", "complement", "neighborhood", "city", "state"];
+  for (const field of fields) {
+    if (input[field] !== undefined) customer[field] = String(input[field] || "").trim();
+  }
+  if (!customer.name || (!customer.email && !customer.phone)) {
+    const error = new Error("Informe nome e pelo menos e-mail ou telefone.");
+    error.status = 400;
+    throw error;
+  }
+  customer.lgpdAcceptedAt = input.lgpdAccepted ? now() : customer.lgpdAcceptedAt;
+  customer.updatedAt = now();
+  await writeDb(db);
+  return publicCustomer(customer);
+}
+
+async function upsertCoupon(input) {
+  const db = await readDb();
+  const id = String(input.id || "").trim();
+  const code = String(input.code || "").trim().toUpperCase();
+  if (!code) {
+    const error = new Error("Informe o codigo do cupom.");
+    error.status = 400;
+    throw error;
+  }
+  const coupon = id
+    ? db.coupons.find((item) => item.id === id)
+    : null;
+  const target = coupon || { id: createId("cup"), createdAt: now() };
+  Object.assign(target, {
+    code,
+    description: String(input.description || "").trim(),
+    discountType: String(input.discountType || "percent").trim(),
+    discountValue: toNumber(input.discountValue),
+    minOrderValue: toNumber(input.minOrderValue),
+    active: input.active !== false,
+    startsAt: String(input.startsAt || "").trim(),
+    endsAt: String(input.endsAt || "").trim(),
+    updatedAt: now()
+  });
+  if (!coupon) db.coupons.unshift(target);
+  await writeDb(db);
+  return target;
+}
+
+async function deleteCoupon(id) {
+  const db = await readDb();
+  db.coupons = db.coupons.filter((item) => item.id !== id);
+  await writeDb(db);
+  return { ok: true };
 }
 
 async function getSummary() {
@@ -827,6 +893,9 @@ module.exports = {
   updateSale,
   createLead,
   loginCustomer,
+  updateCustomer,
+  upsertCoupon,
+  deleteCoupon,
   defaultStoreCategories,
   getSummary
 };

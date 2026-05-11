@@ -5,6 +5,7 @@ const state = {
   purchases: [],
   sales: [],
   leads: [],
+  coupons: [],
   movements: [],
   summary: {},
   settings: {},
@@ -180,7 +181,7 @@ function collectItems(container, priceName) {
 }
 
 async function loadAll() {
-  const [summary, products, suppliers, categories, purchases, sales, leads, movements, settings] = await Promise.all([
+  const [summary, products, suppliers, categories, purchases, sales, leads, coupons, movements, settings] = await Promise.all([
     api("/api/summary"),
     api("/api/products"),
     api("/api/suppliers"),
@@ -188,6 +189,7 @@ async function loadAll() {
     api("/api/purchases"),
     api("/api/sales"),
     api("/api/leads"),
+    api("/api/coupons"),
     api("/api/movements"),
     api("/api/settings")
   ]);
@@ -198,6 +200,7 @@ async function loadAll() {
   state.purchases = purchases;
   state.sales = sales;
   state.leads = leads;
+  state.coupons = coupons;
   state.movements = movements;
   state.settings = settings;
   renderAll();
@@ -211,6 +214,7 @@ function renderAll() {
   renderHistories();
   renderOrders();
   renderLeads();
+  renderCoupons();
   renderSupplierOptions();
   renderProductFormOptions();
   renderProductFilters();
@@ -636,6 +640,47 @@ function renderLeads() {
   }).join("") || '<div class="row-card"><strong>Nenhum cliente cadastrado.</strong><span>Perfis criados no site aparecem aqui automaticamente.</span></div>';
 }
 
+function renderCoupons() {
+  const target = document.getElementById("couponsList");
+  if (!target) return;
+  target.innerHTML = state.coupons.map((coupon) => `
+    <div class="row-card">
+      <strong>${coupon.code} | ${coupon.discountType === "fixed" ? formatMoney(coupon.discountValue) : `${coupon.discountValue}%`} | ${coupon.active ? "Ativo" : "Inativo"}</strong>
+      <span>${coupon.description || "Sem descricao"} | minimo ${formatMoney(coupon.minOrderValue)}${coupon.endsAt ? ` | ate ${coupon.endsAt}` : ""}</span>
+      <div class="row-actions">
+        <button type="button" data-edit-coupon="${coupon.id}">Editar</button>
+        <button class="remove" type="button" data-delete-coupon="${coupon.id}">Excluir</button>
+      </div>
+    </div>
+  `).join("") || '<div class="row-card"><strong>Nenhum cupom cadastrado.</strong></div>';
+
+  document.querySelectorAll("[data-edit-coupon]").forEach((button) => {
+    button.onclick = () => editCoupon(button.dataset.editCoupon);
+  });
+  document.querySelectorAll("[data-delete-coupon]").forEach((button) => {
+    button.onclick = () => deleteCoupon(button.dataset.deleteCoupon);
+  });
+}
+
+function editCoupon(id) {
+  const coupon = state.coupons.find((item) => item.id === id);
+  if (!coupon) return;
+  const form = document.getElementById("couponForm");
+  for (const [key, value] of Object.entries(coupon)) {
+    if (form.elements[key]) {
+      if (form.elements[key].type === "checkbox") form.elements[key].checked = value !== false;
+      else form.elements[key].value = value ?? "";
+    }
+  }
+}
+
+async function deleteCoupon(id) {
+  if (!confirm("Excluir este cupom?")) return;
+  await api(`/api/coupons/${id}`, { method: "DELETE" });
+  toast("Cupom excluido.");
+  await loadAll();
+}
+
 function refreshItemSelects() {
   document.querySelectorAll('.item-row select[name="productId"]').forEach((select) => {
     const current = select.value;
@@ -937,6 +982,7 @@ function bindTabs() {
     purchase: ["Compras", "Lance compras e atualize estoque/custo médio automaticamente."],
     sale: ["Venda", "Baixe estoque e calcule faturamento, taxas e lucro."],
     orders: ["Pedidos", "Acompanhe pedidos da loja, pagamento, separacao, envio e rastreio."],
+    coupons: ["Cupons", "Crie e gerencie cupons de desconto para a loja."],
     leads: ["Clientes", "Perfis cadastrados pelo site para compra e atendimento."],
     history: ["Histórico", "Veja compras, vendas e movimentações de estoque."]
   };
@@ -1035,6 +1081,28 @@ function bindForms() {
   if (orderSearch) orderSearch.oninput = renderOrders;
   const leadSearch = document.getElementById("leadSearch");
   if (leadSearch) leadSearch.oninput = renderLeads;
+  const couponForm = document.getElementById("couponForm");
+  if (couponForm) {
+    couponForm.onsubmit = async (event) => {
+      event.preventDefault();
+      const payload = getFormData(couponForm);
+      payload.active = couponForm.active.checked;
+      payload.discountValue = Number(payload.discountValue || 0);
+      payload.minOrderValue = Number(payload.minOrderValue || 0);
+      await api(payload.id ? `/api/coupons/${payload.id}` : "/api/coupons", {
+        method: payload.id ? "PUT" : "POST",
+        body: JSON.stringify(payload)
+      });
+      couponForm.reset();
+      couponForm.active.checked = true;
+      toast("Cupom salvo.");
+      await loadAll();
+    };
+    document.getElementById("clearCouponForm").onclick = () => {
+      couponForm.reset();
+      couponForm.active.checked = true;
+    };
+  }
 
   const purchaseItems = document.getElementById("purchaseItems");
   document.getElementById("addPurchaseItem").onclick = () => {

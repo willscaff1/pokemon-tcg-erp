@@ -38,6 +38,9 @@ const {
   updateSale,
   createLead,
   loginCustomer,
+  updateCustomer,
+  upsertCoupon,
+  deleteCoupon,
   defaultStoreCategories,
   getSummary
 } = require("./src/storage");
@@ -181,7 +184,9 @@ function isAdminPath(url) {
     "/api/storefront/register",
     "/api/storefront/checkout"
   ];
-  return !publicApi.includes(url.pathname);
+  if (publicApi.includes(url.pathname)) return false;
+  if (/^\/api\/storefront\/customers\/[^/]+$/.test(url.pathname)) return false;
+  return true;
 }
 
 function publicProduct(product) {
@@ -337,6 +342,11 @@ async function handleApi(req, res, url) {
       return sendJson(res, await loginCustomer(input));
     }
 
+    if (method === "PUT" && resource === "storefront" && id === "customers" && parts[3]) {
+      const input = await readBody(req);
+      return sendJson(res, await updateCustomer(parts[3], input));
+    }
+
     if (method === "GET" && resource === "summary") {
       return sendJson(res, await getSummary());
     }
@@ -461,6 +471,25 @@ async function handleApi(req, res, url) {
       return sendJson(res, db.leads || []);
     }
 
+    if (method === "GET" && resource === "coupons") {
+      const db = await readDb();
+      return sendJson(res, db.coupons || []);
+    }
+
+    if (method === "POST" && resource === "coupons") {
+      const input = await readBody(req);
+      return sendJson(res, await upsertCoupon(input), 201);
+    }
+
+    if (method === "PUT" && resource === "coupons" && id) {
+      const input = await readBody(req);
+      return sendJson(res, await upsertCoupon({ ...input, id }));
+    }
+
+    if (method === "DELETE" && resource === "coupons" && id) {
+      return sendJson(res, await deleteCoupon(id));
+    }
+
     if (method === "POST" && resource === "sales") {
       const input = await readBody(req);
       return sendJson(res, await createSale(input), 201);
@@ -490,6 +519,7 @@ async function handleApi(req, res, url) {
         purchases: input.purchases || [],
         sales: input.sales || [],
         leads: input.leads || [],
+        coupons: input.coupons || [],
         movements: input.movements || []
       };
       await writeDb(next);
