@@ -201,20 +201,11 @@ function filteredProducts() {
 }
 
 function renderCategories() {
-  const target = document.getElementById("categoryFilters");
+  const target = document.getElementById("categorySelect");
   const categories = ["Todos", ...state.categories];
   target.innerHTML = categories.map((category) => `
-    <button class="${category === state.activeCategory ? "active" : ""}" type="button" data-category="${category}">
-      ${category}
-    </button>
+    <option value="${category}" ${category === state.activeCategory ? "selected" : ""}>${category}</option>
   `).join("");
-
-  target.querySelectorAll("[data-category]").forEach((button) => {
-    button.onclick = () => {
-      state.activeCategory = button.dataset.category;
-      renderAll();
-    };
-  });
 }
 
 function renderProducts() {
@@ -518,6 +509,10 @@ function bindEvents() {
   });
   document.getElementById("searchInput").oninput = (event) => {
     state.query = event.target.value;
+    renderProducts();
+  };
+  document.getElementById("categorySelect").onchange = (event) => {
+    state.activeCategory = event.target.value;
     renderProducts();
   };
   document.getElementById("sortSelect").onchange = (event) => {
