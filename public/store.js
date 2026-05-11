@@ -630,7 +630,6 @@ async function loadStorefront() {
   state.products = data.products || [];
   state.categories = data.categories || [];
   document.getElementById("storeName").textContent = data.storeName || "Scaff TCG";
-  document.getElementById("heroProductCount").textContent = `${state.products.length} produto(s)`;
 
   for (const id of Object.keys(state.cart)) {
     const product = productById(id);
