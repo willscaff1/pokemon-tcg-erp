@@ -105,19 +105,44 @@ function closeCart() {
   document.getElementById("drawerBackdrop").classList.remove("open");
 }
 
-function openProfile() {
-  renderProfile();
-  document.getElementById("profileDrawer").classList.add("open");
-  document.getElementById("profileDrawer").setAttribute("aria-hidden", "false");
-  document.getElementById("drawerBackdrop").classList.add("open");
+function openAuthModal(id) {
+  closeProfileMenu();
+  document.querySelectorAll(".auth-modal").forEach((modal) => {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  });
+  const modal = document.getElementById(id);
+  modal.classList.add("open");
+  modal.setAttribute("aria-hidden", "false");
 }
 
-function closeProfile() {
-  document.getElementById("profileDrawer").classList.remove("open");
-  document.getElementById("profileDrawer").setAttribute("aria-hidden", "true");
-  if (!document.getElementById("cartDrawer").classList.contains("open")) {
-    document.getElementById("drawerBackdrop").classList.remove("open");
+function closeAuthModals() {
+  document.querySelectorAll(".auth-modal").forEach((modal) => {
+    modal.classList.remove("open");
+    modal.setAttribute("aria-hidden", "true");
+  });
+}
+
+function openLogin() {
+  openAuthModal("loginModal");
+}
+
+function openRegister() {
+  openAuthModal("registerModal");
+}
+
+function toggleProfileMenu() {
+  if (!state.customer) {
+    openLogin();
+    return;
   }
+  const menu = document.getElementById("profileMenu");
+  menu.hidden = !menu.hidden;
+}
+
+function closeProfileMenu() {
+  const menu = document.getElementById("profileMenu");
+  if (menu) menu.hidden = true;
 }
 
 function openProductDetail(id, push = true) {
@@ -337,18 +362,41 @@ function renderAll() {
 function renderProfile() {
   const customer = state.customer;
   document.getElementById("profileLabel").textContent = customer ? "Perfil" : "Entrar";
-  document.getElementById("profileSubtitle").textContent = customer
-    ? `${customer.name || "Cliente"} conectado`
-    : "Entre para comprar no site";
-  document.getElementById("profileLogout").hidden = !customer;
+  if (!customer) closeProfileMenu();
+}
 
-  const form = document.getElementById("profileForm");
-  if (!form || form.dataset.dirty === "true") return;
-  form.reset();
-  if (!customer) return;
-  for (const [key, value] of Object.entries(customer)) {
-    if (form.elements[key]) form.elements[key].value = value || "";
+function showAccountSection(section) {
+  if (!state.customer) {
+    openLogin();
+    return;
   }
+  closeProfileMenu();
+  const title = document.getElementById("accountTitle");
+  const subtitle = document.getElementById("accountSubtitle");
+  const content = document.getElementById("accountContent");
+  const customer = state.customer;
+  const address = [customer.street, customer.number, customer.neighborhood, customer.city, customer.state, customer.zipCode]
+    .filter(Boolean).join(" | ");
+
+  if (section === "orders") {
+    title.textContent = "Meus pedidos";
+    subtitle.textContent = "Pedidos feitos neste site";
+    content.innerHTML = '<div class="account-empty">Seus pedidos finalizados aparecem aqui nas proximas etapas da loja.</div>';
+  } else if (section === "wallet") {
+    title.textContent = "Minha carteira";
+    subtitle.textContent = "Pagamentos e saldos";
+    content.innerHTML = '<div class="account-empty">Carteira, cupons e formas de pagamento serao conectados aqui.</div>';
+  } else {
+    title.textContent = "Meu perfil";
+    subtitle.textContent = customer.name || "Cliente";
+    content.innerHTML = `
+      <div class="account-row"><span>Nome</span><strong>${customer.name || "-"}</strong></div>
+      <div class="account-row"><span>E-mail</span><strong>${customer.email || "-"}</strong></div>
+      <div class="account-row"><span>Celular</span><strong>${customer.phone || "-"}</strong></div>
+      <div class="account-row"><span>Endereco</span><strong>${address || "-"}</strong></div>
+    `;
+  }
+  openAuthModal("accountModal");
 }
 
 function addToCart(id) {
@@ -387,14 +435,32 @@ function removeFromCart(id) {
 }
 
 function bindEvents() {
-  document.getElementById("profileToggle").onclick = openProfile;
-  document.getElementById("profileClose").onclick = closeProfile;
+  document.getElementById("profileToggle").onclick = toggleProfileMenu;
   document.getElementById("cartToggle").onclick = openCart;
   document.getElementById("cartClose").onclick = closeCart;
   document.getElementById("drawerBackdrop").onclick = () => {
     closeCart();
-    closeProfile();
   };
+  document.querySelectorAll("[data-close-auth]").forEach((button) => {
+    button.onclick = closeAuthModals;
+  });
+  document.getElementById("openRegister").onclick = openRegister;
+  document.querySelectorAll("[data-profile-action]").forEach((button) => {
+    button.onclick = () => {
+      const action = button.dataset.profileAction;
+      if (action === "logout") {
+        saveCustomer(null);
+        closeProfileMenu();
+        renderAll();
+        toast("Voce saiu do perfil.");
+      } else {
+        showAccountSection(action);
+      }
+    };
+  });
+  document.addEventListener("click", (event) => {
+    if (!event.target.closest(".profile-menu-wrap")) closeProfileMenu();
+  });
   document.getElementById("searchInput").oninput = (event) => {
     state.query = event.target.value;
     renderProducts();
@@ -408,34 +474,41 @@ function bindEvents() {
     renderAll();
   };
 
-  const profileForm = document.getElementById("profileForm");
-  profileForm.oninput = () => {
-    profileForm.dataset.dirty = "true";
-  };
-  document.getElementById("profileZipCode").onblur = fillAddressFromCep;
-  document.getElementById("profileLogout").onclick = () => {
-    saveCustomer(null);
-    profileForm.dataset.dirty = "false";
-    profileForm.reset();
-    renderProfile();
-    toast("Voce saiu do perfil.");
-  };
-  profileForm.onsubmit = async (event) => {
+  document.getElementById("registerZipCode").onblur = fillAddressFromCep;
+  document.getElementById("loginForm").onsubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form).entries());
 
     try {
-      const customer = await api("/api/storefront/customers", {
+      const customer = await api("/api/storefront/login", {
         method: "POST",
         body: JSON.stringify(payload)
       });
       saveCustomer(customer);
-      form.dataset.dirty = "false";
       form.reset();
       renderProfile();
-      closeProfile();
-      toast("Perfil conectado.");
+      closeAuthModals();
+      toast("Login realizado.");
+    } catch (error) {
+      toast(error.message);
+    }
+  };
+  document.getElementById("registerForm").onsubmit = async (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const payload = Object.fromEntries(new FormData(form).entries());
+
+    try {
+      const customer = await api("/api/storefront/register", {
+        method: "POST",
+        body: JSON.stringify(payload)
+      });
+      saveCustomer(customer);
+      form.reset();
+      renderProfile();
+      closeAuthModals();
+      toast("Cadastro realizado.");
     } catch (error) {
       toast(error.message);
     }
@@ -450,7 +523,7 @@ function bindEvents() {
     }
     if (!state.customer) {
       toast("Entre no perfil para finalizar a compra.");
-      openProfile();
+      openLogin();
       return;
     }
 
@@ -491,7 +564,7 @@ async function fillAddressFromCep(event) {
     const data = await response.json();
     if (!response.ok || data.erro) throw new Error("CEP nao encontrado.");
 
-    const form = document.getElementById("profileForm");
+    const form = document.getElementById("registerForm");
     form.street.value = data.logradouro || form.street.value;
     form.neighborhood.value = data.bairro || form.neighborhood.value;
     form.city.value = data.localidade || form.city.value;

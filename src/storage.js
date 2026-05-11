@@ -1,11 +1,18 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { Pool } = require("pg");
 
 let pgPool = null;
 let pgReady = false;
 
 const now = () => new Date().toISOString();
+const hashPassword = (password) => crypto.createHash("sha256").update(String(password || "")).digest("hex");
+const publicCustomer = (customer) => {
+  if (!customer) return null;
+  const { passwordHash, ...safeCustomer } = customer;
+  return safeCustomer;
+};
 const defaultCategories = [
   "Produto",
   "Booster",
@@ -694,8 +701,14 @@ async function createLead(input) {
   const name = String(input.name || "").trim();
   const email = String(input.email || "").trim();
   const phone = String(input.phone || "").trim();
+  const password = String(input.password || "");
   if (!name || (!email && !phone)) {
     const error = new Error("Informe nome e pelo menos e-mail ou celular.");
+    error.status = 400;
+    throw error;
+  }
+  if (input.requirePassword && password.length < 6) {
+    const error = new Error("Informe uma senha com pelo menos 6 caracteres.");
     error.status = 400;
     throw error;
   }
@@ -707,6 +720,11 @@ async function createLead(input) {
   });
 
   if (existing) {
+    if (input.requirePassword && existing.passwordHash && !input.allowUpdate) {
+      const error = new Error("Ja existe uma conta com este e-mail ou celular.");
+      error.status = 409;
+      throw error;
+    }
     Object.assign(existing, {
       name,
       email,
@@ -721,8 +739,9 @@ async function createLead(input) {
       source: String(input.source || existing.source || "Site").trim(),
       updatedAt: now()
     });
+    if (password) existing.passwordHash = hashPassword(password);
     await writeDb(db);
-    return existing;
+    return publicCustomer(existing);
   }
 
   const lead = {
@@ -738,12 +757,33 @@ async function createLead(input) {
     city: String(input.city || "").trim(),
     state: String(input.state || "").trim(),
     source: String(input.source || "Site").trim(),
+    passwordHash: password ? hashPassword(password) : "",
     createdAt: now()
   };
 
   db.leads.unshift(lead);
   await writeDb(db);
-  return lead;
+  return publicCustomer(lead);
+}
+
+async function loginCustomer(input) {
+  const db = await readDb();
+  const login = String(input.login || "").trim().toLowerCase();
+  const phoneLogin = login.replace(/\D/g, "");
+  const password = String(input.password || "");
+  const customer = db.leads.find((item) => {
+    const email = String(item.email || "").trim().toLowerCase();
+    const phone = String(item.phone || "").replace(/\D/g, "");
+    return (login && email === login) || (phoneLogin && phone === phoneLogin);
+  });
+
+  if (!customer || !customer.passwordHash || customer.passwordHash !== hashPassword(password)) {
+    const error = new Error("Login ou senha invalidos.");
+    error.status = 401;
+    throw error;
+  }
+
+  return publicCustomer(customer);
 }
 
 async function getSummary() {
@@ -786,6 +826,7 @@ module.exports = {
   createSale,
   updateSale,
   createLead,
+  loginCustomer,
   defaultStoreCategories,
   getSummary
 };

@@ -37,6 +37,7 @@ const {
   createSale,
   updateSale,
   createLead,
+  loginCustomer,
   defaultStoreCategories,
   getSummary
 } = require("./src/storage");
@@ -171,7 +172,8 @@ function isAdminPath(url) {
   const publicApi = [
     "/api/health",
     "/api/storefront",
-    "/api/storefront/customers",
+    "/api/storefront/login",
+    "/api/storefront/register",
     "/api/storefront/checkout"
   ];
   return !publicApi.includes(url.pathname);
@@ -253,10 +255,18 @@ async function createStorefrontCheckout(input) {
   const customerName = String(input.customerName || "").trim();
   const customerEmail = String(input.customerEmail || "").trim();
   const customerPhone = String(input.customerPhone || "").trim();
+  const customerId = String(input.customerId || "").trim();
   const paymentMethod = String(input.paymentMethod || "PIX").trim();
 
+  const customer = db.leads.find((item) => item.id === customerId && item.passwordHash);
+  if (!customer) {
+    const error = new Error("Entre no perfil para finalizar o pedido.");
+    error.status = 401;
+    throw error;
+  }
+
   if (!customerName || !customerPhone) {
-    const error = new Error("Informe nome e WhatsApp para finalizar o pedido.");
+    const error = new Error("Complete nome e WhatsApp para finalizar o pedido.");
     error.status = 400;
     throw error;
   }
@@ -312,9 +322,14 @@ async function handleApi(req, res, url) {
       return sendJson(res, await createStorefrontCheckout(input), 201);
     }
 
-    if (method === "POST" && resource === "storefront" && id === "customers") {
+    if (method === "POST" && resource === "storefront" && id === "register") {
       const input = await readBody(req);
-      return sendJson(res, await createLead({ ...input, source: "Perfil" }), 201);
+      return sendJson(res, await createLead({ ...input, source: "Perfil", requirePassword: true }), 201);
+    }
+
+    if (method === "POST" && resource === "storefront" && id === "login") {
+      const input = await readBody(req);
+      return sendJson(res, await loginCustomer(input));
     }
 
     if (method === "GET" && resource === "summary") {

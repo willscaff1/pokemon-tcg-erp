@@ -79,6 +79,10 @@ button, a { -webkit-tap-highlight-color: transparent; }
   align-items: center;
 }
 
+.profile-menu-wrap {
+  position: relative;
+}
+
 .profile-button,
 .cart-button,
 .checkout-button,
@@ -138,6 +142,36 @@ button, a { -webkit-tap-highlight-color: transparent; }
 
 .profile-button:hover {
   border-color: #121621;
+}
+
+.profile-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 20;
+  display: grid;
+  min-width: 190px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.profile-menu button {
+  min-height: 38px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.profile-menu button:hover {
+  background: #f4efe7;
 }
 
 .cart-button:hover,
@@ -802,39 +836,106 @@ button:disabled {
   line-height: 1.35;
 }
 
-.profile-drawer {
+.legacy-profile-drawer {
+  display: none;
+}
+
+.auth-modal {
   position: fixed;
-  top: 0;
-  right: 0;
-  z-index: 30;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  width: min(420px, 100%);
-  height: 100vh;
-  background: #fff;
-  box-shadow: -20px 0 60px rgba(15, 23, 42, .24);
-  transform: translateX(105%);
-  transition: transform .2s ease;
+  inset: 0;
+  z-index: 35;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
 }
 
-.profile-drawer.open {
-  transform: translateX(0);
+.auth-modal.open {
+  display: flex;
 }
 
-.profile-form {
-  display: grid;
-  align-content: start;
-  gap: 10px;
+.auth-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, .48);
+}
+
+.auth-panel {
+  position: relative;
+  width: min(430px, 100%);
+  max-height: calc(100vh - 36px);
   overflow: auto;
-  padding: 16px 18px 18px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, .24);
 }
 
-.profile-form label {
+.auth-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.auth-head h2 {
+  margin: 0;
+  font-size: 1.35rem;
+}
+
+.auth-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-form label {
   display: grid;
   gap: 6px;
   color: #344054;
   font-size: .84rem;
   font-weight: 800;
+}
+
+.auth-link {
+  min-height: 38px;
+  border: 0;
+  background: transparent;
+  color: var(--accent-dark);
+  padding: 6px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.account-content {
+  display: grid;
+  gap: 10px;
+}
+
+.account-row,
+.account-empty {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfaf7;
+}
+
+.account-row span,
+.account-row strong {
+  display: block;
+}
+
+.account-row span,
+.account-empty {
+  color: var(--muted);
+  font-size: .9rem;
 }
 
 .profile-address-grid {
@@ -906,6 +1007,8 @@ button:disabled {
   }
 
   .header-actions,
+  .profile-menu-wrap,
+  .profile-button,
   .cart-button {
     width: 100%;
   }
