@@ -5,6 +5,7 @@ const state = {
   query: "",
   sort: "featured",
   detailProductId: productIdFromPath(),
+  accountPage: accountPageFromPath(),
   customer: loadCustomer(),
   cart: loadCart()
 };
@@ -18,6 +19,11 @@ function formatMoney(value) {
 function productIdFromPath() {
   const match = window.location.pathname.match(/^\/produto\/([^/]+)$/);
   return match ? decodeURIComponent(match[1]) : "";
+}
+
+function accountPageFromPath() {
+  const match = window.location.pathname.match(/^\/(perfil|pedidos|carteira)$/);
+  return match ? match[1] : "";
 }
 
 function productDescription(product) {
@@ -149,6 +155,7 @@ function openProductDetail(id, push = true) {
   const product = productById(id);
   if (!product) return;
   state.detailProductId = id;
+  state.accountPage = "";
   if (push) window.history.pushState({ productId: id }, "", `/produto/${encodeURIComponent(id)}`);
   renderAll();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -156,8 +163,18 @@ function openProductDetail(id, push = true) {
 
 function closeProductDetail(push = true) {
   state.detailProductId = "";
+  state.accountPage = "";
   if (push) window.history.pushState({}, "", "/");
   renderAll();
+}
+
+function navigateAccountPage(page, push = true) {
+  state.detailProductId = "";
+  state.accountPage = page;
+  closeProfileMenu();
+  if (push) window.history.pushState({ accountPage: page }, "", `/${page}`);
+  renderAll();
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function productImage(product, className = "") {
@@ -202,11 +219,17 @@ function renderCategories() {
 
 function renderProducts() {
   const isDetailOpen = Boolean(state.detailProductId);
-  document.querySelector(".hero").hidden = isDetailOpen;
-  document.querySelector(".toolbar").hidden = isDetailOpen;
-  document.getElementById("statusMessage").hidden = isDetailOpen;
-  document.getElementById("productGrid").hidden = isDetailOpen;
+  const isAccountOpen = Boolean(state.accountPage);
+  document.querySelector(".hero").hidden = isDetailOpen || isAccountOpen;
+  document.querySelector(".toolbar").hidden = isDetailOpen || isAccountOpen;
+  document.getElementById("statusMessage").hidden = isDetailOpen || isAccountOpen;
+  document.getElementById("productGrid").hidden = isDetailOpen || isAccountOpen;
   document.getElementById("productDetail").hidden = !isDetailOpen;
+  document.getElementById("accountPage").hidden = !isAccountOpen;
+  if (isAccountOpen) {
+    renderAccountPage();
+    return;
+  }
   if (isDetailOpen) {
     renderProductDetail();
     return;
@@ -365,38 +388,69 @@ function renderProfile() {
   if (!customer) closeProfileMenu();
 }
 
-function showAccountSection(section) {
+function renderAccountPage() {
+  const target = document.getElementById("accountPage");
+  const page = state.accountPage;
   if (!state.customer) {
-    openLogin();
+    target.innerHTML = `
+      <div class="account-shell">
+        <button class="back-button" type="button" data-back-store>Voltar para a loja</button>
+        <section class="account-panel">
+          <h1>Entrar na conta</h1>
+          <p>Entre ou cadastre-se para acessar esta area.</p>
+          <div class="account-actions">
+            <button class="checkout-button" type="button" data-open-login>Entrar</button>
+            <button class="secondary-button" type="button" data-open-register>Cadastre-se</button>
+          </div>
+        </section>
+      </div>
+    `;
+    target.querySelector("[data-back-store]").onclick = () => closeProductDetail();
+    target.querySelector("[data-open-login]").onclick = openLogin;
+    target.querySelector("[data-open-register]").onclick = openRegister;
     return;
   }
-  closeProfileMenu();
-  const title = document.getElementById("accountTitle");
-  const subtitle = document.getElementById("accountSubtitle");
-  const content = document.getElementById("accountContent");
+
   const customer = state.customer;
   const address = [customer.street, customer.number, customer.neighborhood, customer.city, customer.state, customer.zipCode]
     .filter(Boolean).join(" | ");
+  const titles = {
+    perfil: ["Meu perfil", "Dados da sua conta no site."],
+    pedidos: ["Meus pedidos", "Acompanhe suas compras feitas no site."],
+    carteira: ["Minha carteira", "Pagamentos, cupons e saldos."]
+  };
+  const [title, subtitle] = titles[page] || titles.perfil;
+  const body = page === "pedidos"
+    ? '<div class="account-empty">Seus pedidos finalizados aparecem aqui nas proximas etapas da loja.</div>'
+    : page === "carteira"
+      ? '<div class="account-empty">Carteira, cupons e formas de pagamento serao conectados aqui.</div>'
+      : `
+        <div class="account-row"><span>Nome</span><strong>${customer.name || "-"}</strong></div>
+        <div class="account-row"><span>E-mail</span><strong>${customer.email || "-"}</strong></div>
+        <div class="account-row"><span>Celular</span><strong>${customer.phone || "-"}</strong></div>
+        <div class="account-row"><span>Endereco</span><strong>${address || "-"}</strong></div>
+      `;
 
-  if (section === "orders") {
-    title.textContent = "Meus pedidos";
-    subtitle.textContent = "Pedidos feitos neste site";
-    content.innerHTML = '<div class="account-empty">Seus pedidos finalizados aparecem aqui nas proximas etapas da loja.</div>';
-  } else if (section === "wallet") {
-    title.textContent = "Minha carteira";
-    subtitle.textContent = "Pagamentos e saldos";
-    content.innerHTML = '<div class="account-empty">Carteira, cupons e formas de pagamento serao conectados aqui.</div>';
-  } else {
-    title.textContent = "Meu perfil";
-    subtitle.textContent = customer.name || "Cliente";
-    content.innerHTML = `
-      <div class="account-row"><span>Nome</span><strong>${customer.name || "-"}</strong></div>
-      <div class="account-row"><span>E-mail</span><strong>${customer.email || "-"}</strong></div>
-      <div class="account-row"><span>Celular</span><strong>${customer.phone || "-"}</strong></div>
-      <div class="account-row"><span>Endereco</span><strong>${address || "-"}</strong></div>
-    `;
-  }
-  openAuthModal("accountModal");
+  target.innerHTML = `
+    <div class="account-shell">
+      <button class="back-button" type="button" data-back-store>Voltar para a loja</button>
+      <section class="account-panel">
+        <div class="account-page-head">
+          <div>
+            <h1>${title}</h1>
+            <p>${subtitle}</p>
+          </div>
+          <nav class="account-tabs" aria-label="Menu da conta">
+            <a class="${page === "perfil" ? "active" : ""}" href="/perfil">Meu perfil</a>
+            <a class="${page === "pedidos" ? "active" : ""}" href="/pedidos">Meus pedidos</a>
+            <a class="${page === "carteira" ? "active" : ""}" href="/carteira">Minha carteira</a>
+          </nav>
+        </div>
+        <div class="account-content">${body}</div>
+      </section>
+    </div>
+  `;
+  target.querySelector("[data-back-store]").onclick = () => closeProductDetail();
 }
 
 function addToCart(id) {
@@ -454,7 +508,8 @@ function bindEvents() {
         renderAll();
         toast("Voce saiu do perfil.");
       } else {
-        showAccountSection(action);
+        const routes = { profile: "perfil", orders: "pedidos", wallet: "carteira" };
+        navigateAccountPage(routes[action] || "perfil");
       }
     };
   });
@@ -471,6 +526,7 @@ function bindEvents() {
   };
   window.onpopstate = () => {
     state.detailProductId = productIdFromPath();
+    state.accountPage = accountPageFromPath();
     renderAll();
   };
 
@@ -487,7 +543,7 @@ function bindEvents() {
       });
       saveCustomer(customer);
       form.reset();
-      renderProfile();
+      renderAll();
       closeAuthModals();
       toast("Login realizado.");
     } catch (error) {
@@ -506,7 +562,7 @@ function bindEvents() {
       });
       saveCustomer(customer);
       form.reset();
-      renderProfile();
+      renderAll();
       closeAuthModals();
       toast("Cadastro realizado.");
     } catch (error) {

@@ -128,7 +128,12 @@ function readBody(req, maxBytes = 2_000_000) {
 
 function resolveStaticPath(url) {
   let requested = url.pathname;
-  if (requested === "/" || requested === "/index.html" || requested.startsWith("/produto/")) {
+  if (
+    requested === "/"
+    || requested === "/index.html"
+    || requested.startsWith("/produto/")
+    || ["/perfil", "/pedidos", "/carteira"].includes(requested)
+  ) {
     requested = "/store.html";
   }
   if (requested === "/admin") {
