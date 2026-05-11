@@ -75,7 +75,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
   align-items: center;
 }
 
-.admin-link,
 .cart-button,
 .checkout-button,
 .cart-head button,
@@ -89,15 +88,6 @@ button, a { -webkit-tap-highlight-color: transparent; }
   font-weight: 800;
   cursor: pointer;
   text-decoration: none;
-}
-
-.admin-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-color: transparent;
-  background: #f4efe7;
-  color: #5b4631;
 }
 
 .cart-button,
@@ -823,7 +813,6 @@ button:disabled {
   }
 
   .header-actions,
-  .admin-link,
   .cart-button {
     width: 100%;
   }
