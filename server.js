@@ -274,9 +274,24 @@ async function createStorefrontCheckout(input) {
     error.status = 401;
     throw error;
   }
+  const customerCpf = String(input.customerCpf || customer.cpf || "").trim();
 
   if (!customerName || !customerPhone) {
     const error = new Error("Complete nome e WhatsApp para finalizar o pedido.");
+    error.status = 400;
+    throw error;
+  }
+  const deliveryAddress = {
+    zipCode: String(input.deliveryAddress?.zipCode || customer.zipCode || "").trim(),
+    street: String(input.deliveryAddress?.street || customer.street || "").trim(),
+    number: String(input.deliveryAddress?.number || customer.number || "").trim(),
+    complement: String(input.deliveryAddress?.complement || customer.complement || "").trim(),
+    neighborhood: String(input.deliveryAddress?.neighborhood || customer.neighborhood || "").trim(),
+    city: String(input.deliveryAddress?.city || customer.city || "").trim(),
+    state: String(input.deliveryAddress?.state || customer.state || "").trim()
+  };
+  if (!customerCpf || !deliveryAddress.zipCode || !deliveryAddress.street || !deliveryAddress.number || !deliveryAddress.neighborhood || !deliveryAddress.city || !deliveryAddress.state) {
+    const error = new Error("Complete CPF e endereco de entrega para finalizar.");
     error.status = 400;
     throw error;
   }
@@ -286,10 +301,15 @@ async function createStorefrontCheckout(input) {
     customer: customerName,
     channel: "Site proprio",
     paymentMethod,
-    paymentStatus: "Pendente",
-    orderStatus: "Recebido",
+    paymentStatus: "Pago",
+    orderStatus: "Pedido confirmado",
     trackingCode: "",
     trackingUrl: "",
+    customerEmail,
+    customerPhone,
+    customerCpf,
+    customerId,
+    deliveryAddress,
     discount: 0,
     shippingCharged: 0,
     fees: 0,
@@ -297,6 +317,8 @@ async function createStorefrontCheckout(input) {
       "Pedido criado pela loja online.",
       customerEmail ? `Email: ${customerEmail}` : "",
       customerPhone ? `WhatsApp: ${customerPhone}` : "",
+      customerCpf ? `CPF: ${customerCpf}` : "",
+      `Endereco: ${deliveryAddress.street}, ${deliveryAddress.number}${deliveryAddress.complement ? ` - ${deliveryAddress.complement}` : ""} - ${deliveryAddress.neighborhood} - ${deliveryAddress.city}/${deliveryAddress.state} - CEP ${deliveryAddress.zipCode}`,
       input.notes ? `Observacoes: ${String(input.notes).trim()}` : ""
     ].filter(Boolean).join(" | "),
     items: saleItems
@@ -306,6 +328,7 @@ async function createStorefrontCheckout(input) {
     ok: true,
     orderId: sale.id,
     paymentStatus: sale.paymentStatus,
+    orderStatus: sale.orderStatus,
     paymentMethod: sale.paymentMethod,
     total: sale.netRevenue,
     message: "Pedido recebido. Pagamento pendente de confirmacao."

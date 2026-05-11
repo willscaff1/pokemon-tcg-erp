@@ -763,7 +763,8 @@ input:focus, select:focus, textarea:focus {
 .checkout-form {
   display: grid;
   gap: 10px;
-  padding: 16px 18px 18px;
+  overflow: auto;
+  padding: 14px 18px 18px;
   border-top: 1px solid var(--line);
   background: #fbfaf7;
 }
@@ -812,6 +813,64 @@ button:disabled {
   color: var(--muted);
   font-size: .82rem;
   line-height: 1.35;
+}
+
+.checkout-steps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.checkout-steps span {
+  min-height: 30px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  color: #64748b;
+  padding: 7px 8px;
+  text-align: center;
+  font-size: .72rem;
+  font-weight: 900;
+}
+
+.checkout-steps span.active {
+  background: #121621;
+  color: #fff;
+}
+
+.checkout-steps span.done {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.checkout-panel,
+.checkout-section,
+.checkout-confirmed {
+  display: grid;
+  gap: 10px;
+}
+
+.checkout-section,
+.checkout-confirmed {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.checkout-section span,
+.checkout-confirmed span {
+  color: var(--muted);
+  font-size: .9rem;
+}
+
+.checkout-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payment-options.compact {
+  grid-template-columns: 1fr;
 }
 
 .legacy-profile-drawer {

@@ -243,36 +243,19 @@
       <button id="cartClose" class="close-button" type="button" aria-label="Fechar carrinho">×</button>
     </div>
 
-    <div id="cartItems" class="cart-items"></div>
-
     <form id="checkoutForm" class="checkout-form">
+      <div class="checkout-steps" aria-label="Etapas do checkout">
+        <span data-step-indicator="summary">Resumo</span>
+        <span data-step-indicator="delivery">Entrega</span>
+        <span data-step-indicator="payment">Pagamento</span>
+        <span data-step-indicator="done">Confirmado</span>
+      </div>
+      <div id="cartItems" class="cart-items"></div>
       <div class="cart-total">
         <span>Total</span>
         <strong id="cartTotal">R$ 0,00</strong>
       </div>
-
-      <label>Nome completo
-        <input name="customerName" autocomplete="name" required>
-      </label>
-      <label>WhatsApp
-        <input name="customerPhone" autocomplete="tel" required>
-      </label>
-      <label>E-mail
-        <input name="customerEmail" type="email" autocomplete="email">
-      </label>
-      <label>Pagamento
-        <select name="paymentMethod">
-          <option>PIX</option>
-          <option>Cartao</option>
-          <option>Combinar pelo WhatsApp</option>
-        </select>
-      </label>
-      <label>Observacoes
-        <textarea name="notes" rows="3" placeholder="Retirada, envio, cupom ou comentario"></textarea>
-      </label>
-
-      <button class="checkout-button" type="submit">Finalizar pedido</button>
-      <p class="checkout-note">O pedido fica pendente ate a confirmacao do pagamento.</p>
+      <section id="checkoutPanel" class="checkout-panel"></section>
     </form>
   </aside>
 

@@ -8,6 +8,8 @@ const state = {
   accountPage: accountPageFromPath(),
   customer: loadCustomer(),
   cards: loadCards(),
+  checkoutStep: "summary",
+  lastOrder: null,
   cart: loadCart()
 };
 
@@ -113,10 +115,21 @@ function cartTotal() {
   return cartEntries().reduce((sum, item) => sum + item.quantity * Number(item.product.salePrice || 0), 0);
 }
 
+function customerAddress(customer = state.customer || {}) {
+  return [customer.street, customer.number, customer.complement, customer.neighborhood, customer.city, customer.state, customer.zipCode]
+    .filter(Boolean).join(" | ");
+}
+
+function hasDeliveryAddress(customer = state.customer) {
+  return Boolean(customer && customer.street && customer.number && customer.neighborhood && customer.city && customer.state && customer.zipCode);
+}
+
 function openCart() {
+  if (!cartEntries().length) state.checkoutStep = "summary";
   document.getElementById("cartDrawer").classList.add("open");
   document.getElementById("cartDrawer").setAttribute("aria-hidden", "false");
   document.getElementById("drawerBackdrop").classList.add("open");
+  renderCart();
 }
 
 function closeCart() {
@@ -383,12 +396,128 @@ function renderCart() {
     button.onclick = () => removeFromCart(button.dataset.remove);
   });
 
-  const checkoutForm = document.getElementById("checkoutForm");
-  if (state.customer && checkoutForm) {
-    checkoutForm.customerName.value = state.customer.name || checkoutForm.customerName.value;
-    checkoutForm.customerEmail.value = state.customer.email || checkoutForm.customerEmail.value;
-    checkoutForm.customerPhone.value = state.customer.phone || checkoutForm.customerPhone.value;
+  renderCheckoutPanel();
+}
+
+function renderCheckoutPanel() {
+  const panel = document.getElementById("checkoutPanel");
+  const entries = cartEntries();
+  const steps = ["summary", "delivery", "payment", "done"];
+  document.querySelectorAll("[data-step-indicator]").forEach((indicator) => {
+    const step = indicator.dataset.stepIndicator;
+    indicator.classList.toggle("active", step === state.checkoutStep);
+    indicator.classList.toggle("done", steps.indexOf(step) < steps.indexOf(state.checkoutStep));
+  });
+
+  if (!entries.length && state.checkoutStep !== "done") {
+    panel.innerHTML = '<div class="status-message">Adicione produtos para iniciar o pedido.</div>';
+    return;
   }
+
+  if (state.checkoutStep === "summary") {
+    panel.innerHTML = `
+      <button class="checkout-button" type="button" data-next-checkout>Continuar para entrega</button>
+      <p class="checkout-note">Revise os itens antes de seguir.</p>
+    `;
+  } else if (state.checkoutStep === "delivery") {
+    const customer = state.customer;
+    if (!customer) {
+      panel.innerHTML = `
+        <div class="status-message">Entre no perfil para continuar.</div>
+        <button class="checkout-button" type="button" data-open-login>Entrar</button>
+      `;
+    } else {
+      panel.innerHTML = `
+        <div class="checkout-section">
+          <strong>Entrega</strong>
+          <span>${customer.name || "Cliente"} | ${customer.phone || "sem telefone"}</span>
+          <span>CPF: ${customer.cpf || "nao informado"}</span>
+          <span>${customerAddress(customer) || "Endereco nao cadastrado"}</span>
+        </div>
+        <div class="checkout-actions">
+          <button class="secondary-button" type="button" data-prev-checkout>Voltar</button>
+          <button class="secondary-button" type="button" data-edit-profile>Editar endereco</button>
+          <button class="checkout-button" type="button" data-next-checkout ${hasDeliveryAddress(customer) ? "" : "disabled"}>Continuar para pagamento</button>
+        </div>
+        ${hasDeliveryAddress(customer) ? "" : '<p class="checkout-note">Complete o endereco do perfil para envio pelos Correios.</p>'}
+      `;
+    }
+  } else if (state.checkoutStep === "payment") {
+    panel.innerHTML = `
+      <div class="payment-options compact" role="radiogroup" aria-label="Forma de pagamento do pedido">
+        <label class="payment-option active">
+          <input name="checkoutPayment" type="radio" value="PIX" checked>
+          <span><strong>PIX</strong><small>Aprovacao imediata simulada</small></span>
+        </label>
+        <label class="payment-option">
+          <input name="checkoutPayment" type="radio" value="Cartao">
+          <span><strong>Cartao</strong><small>Credito cadastrado</small></span>
+        </label>
+      </div>
+      <label>Observacoes
+        <textarea name="notes" rows="3" placeholder="Comentario sobre entrega ou pedido"></textarea>
+      </label>
+      <div class="checkout-actions">
+        <button class="secondary-button" type="button" data-prev-checkout>Voltar</button>
+        <button class="checkout-button" type="submit">Pagar e confirmar pedido</button>
+      </div>
+    `;
+  } else {
+    panel.innerHTML = `
+      <div class="checkout-confirmed">
+        <strong>Pedido confirmado</strong>
+        <span>${state.lastOrder ? `Pedido ${state.lastOrder.orderId} aprovado em ${state.lastOrder.paymentMethod}.` : "Pagamento aprovado."}</span>
+      </div>
+      <button class="checkout-button" type="button" data-close-cart>Fechar</button>
+    `;
+  }
+
+  panel.querySelectorAll("[data-next-checkout]").forEach((button) => {
+    button.onclick = () => nextCheckoutStep();
+  });
+  panel.querySelectorAll("[data-prev-checkout]").forEach((button) => {
+    button.onclick = () => prevCheckoutStep();
+  });
+  panel.querySelectorAll("[data-open-login]").forEach((button) => {
+    button.onclick = openLogin;
+  });
+  panel.querySelectorAll("[data-edit-profile]").forEach((button) => {
+    button.onclick = openEditProfile;
+  });
+  panel.querySelectorAll("[data-close-cart]").forEach((button) => {
+    button.onclick = closeCart;
+  });
+  panel.querySelectorAll('.payment-option input[name="checkoutPayment"]').forEach((input) => {
+    input.onchange = () => {
+      panel.querySelectorAll(".payment-option").forEach((option) => option.classList.remove("active"));
+      input.closest(".payment-option").classList.add("active");
+    };
+  });
+}
+
+function nextCheckoutStep() {
+  if (state.checkoutStep === "summary") {
+    if (!state.customer) {
+      toast("Entre no perfil para continuar.");
+      openLogin();
+      return;
+    }
+    state.checkoutStep = "delivery";
+  } else if (state.checkoutStep === "delivery") {
+    if (!hasDeliveryAddress()) {
+      toast("Complete o endereco para entrega.");
+      openEditProfile();
+      return;
+    }
+    state.checkoutStep = "payment";
+  }
+  renderCart();
+}
+
+function prevCheckoutStep() {
+  if (state.checkoutStep === "payment") state.checkoutStep = "delivery";
+  else if (state.checkoutStep === "delivery") state.checkoutStep = "summary";
+  renderCart();
 }
 
 function renderAll() {
@@ -558,6 +687,10 @@ function addToCart(id) {
     return;
   }
   state.cart[id] = current + 1;
+  if (state.checkoutStep === "done") {
+    state.checkoutStep = "summary";
+    state.lastOrder = null;
+  }
   saveCart();
   renderCart();
   toast("Produto adicionado ao carrinho.");
@@ -580,6 +713,7 @@ function changeQuantity(id, delta) {
 
 function removeFromCart(id) {
   delete state.cart[id];
+  if (!cartEntries().length) state.checkoutStep = "summary";
   saveCart();
   renderCart();
 }
@@ -704,13 +838,34 @@ function bindEvents() {
       openLogin();
       return;
     }
+    if (state.checkoutStep !== "payment") {
+      nextCheckoutStep();
+      return;
+    }
+    if (!hasDeliveryAddress()) {
+      toast("Complete o endereco para entrega.");
+      openEditProfile();
+      return;
+    }
 
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form).entries());
     payload.customerName = state.customer.name || payload.customerName;
     payload.customerEmail = state.customer.email || payload.customerEmail;
     payload.customerPhone = state.customer.phone || payload.customerPhone;
+    payload.customerCpf = state.customer.cpf || "";
     payload.customerId = state.customer.id;
+    payload.deliveryAddress = {
+      zipCode: state.customer.zipCode || "",
+      street: state.customer.street || "",
+      number: state.customer.number || "",
+      complement: state.customer.complement || "",
+      neighborhood: state.customer.neighborhood || "",
+      city: state.customer.city || "",
+      state: state.customer.state || ""
+    };
+    const selectedPayment = document.querySelector('input[name="checkoutPayment"]:checked');
+    payload.paymentMethod = selectedPayment ? selectedPayment.value : "PIX";
     payload.items = entries.map(({ product, quantity }) => ({
       productId: product.id,
       quantity
@@ -722,11 +877,11 @@ function bindEvents() {
         body: JSON.stringify(payload)
       });
       state.cart = {};
+      state.checkoutStep = "done";
+      state.lastOrder = result;
       saveCart();
-      form.reset();
       await loadStorefront();
-      closeCart();
-      toast(`Pedido ${result.orderId} criado. Total ${formatMoney(result.total)}.`);
+      toast(`Pedido ${result.orderId} pago e confirmado.`);
     } catch (error) {
       toast(error.message);
     }

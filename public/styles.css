@@ -401,6 +401,20 @@ td {
   gap: 10px;
 }
 
+.order-customer {
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.order-customer strong,
+.order-customer span {
+  display: block;
+}
+
 .order-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

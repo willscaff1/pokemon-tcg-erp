@@ -548,6 +548,14 @@ function renderOrders() {
     <div class="row-card order-card" data-order-card="${sale.id}">
       <strong>Pedido ${sale.id} | ${sale.customer || "Cliente"} | ${formatMoney(sale.netRevenue)}</strong>
       <span>${sale.date} | ${sale.items.map((item) => `${item.quantity}x ${item.productName}`).join(", ")}</span>
+      <div class="order-customer">
+        <strong>Dados do comprador / Correios</strong>
+        <span>Nome: ${sale.customer || "-"}</span>
+        <span>Telefone: ${sale.customerPhone || "-"}</span>
+        <span>E-mail: ${sale.customerEmail || "-"}</span>
+        <span>CPF: ${sale.customerCpf || "-"}</span>
+        <span>Endereco: ${formatOrderAddress(sale.deliveryAddress)}</span>
+      </div>
       <div class="order-grid">
         <label>Pagamento
           <select data-order-field="paymentStatus">
@@ -558,7 +566,7 @@ function renderOrders() {
         </label>
         <label>Status do pedido
           <select data-order-field="orderStatus">
-            ${["Recebido", "Em separacao", "Enviado", "Entregue", "Cancelado"].map((status) => `
+            ${["Pedido confirmado", "Recebido", "Em separacao", "Enviado", "Entregue", "Cancelado"].map((status) => `
               <option ${String(sale.orderStatus || "Recebido") === status ? "selected" : ""}>${status}</option>
             `).join("")}
           </select>
@@ -583,6 +591,19 @@ function renderOrders() {
   document.querySelectorAll("[data-save-order]").forEach((button) => {
     button.onclick = () => saveOrder(button.dataset.saveOrder);
   });
+}
+
+function formatOrderAddress(address = {}) {
+  if (!address) return "-";
+  return [
+    address.street,
+    address.number,
+    address.complement,
+    address.neighborhood,
+    address.city,
+    address.state,
+    address.zipCode
+  ].filter(Boolean).join(" | ") || "-";
 }
 
 async function saveOrder(id) {
