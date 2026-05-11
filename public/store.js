@@ -441,10 +441,27 @@ function renderAccountPage() {
     : page === "carteira"
       ? `
         <div class="wallet-default">
-          <strong>PIX</strong>
-          <span>Forma de pagamento padrao para compras no site.</span>
+          <strong>Forma de pagamento</strong>
+          <span>Escolha como deseja pagar nas compras do site.</span>
         </div>
-        <form id="cardForm" class="auth-form card-form">
+        <div class="payment-options" role="radiogroup" aria-label="Forma de pagamento">
+          <label class="payment-option active">
+            <input name="paymentPreference" type="radio" value="pix" checked>
+            <span>
+              <strong>PIX</strong>
+              <small>Pagamento padrao</small>
+            </span>
+          </label>
+          <label class="payment-option">
+            <input name="paymentPreference" type="radio" value="card">
+            <span>
+              <strong>Cartao</strong>
+              <small>Use um cartao cadastrado</small>
+            </span>
+          </label>
+        </div>
+        <button class="secondary-button" type="button" data-show-card-form>Cadastrar cartao</button>
+        <form id="cardForm" class="auth-form card-form" hidden>
           <label>Nome impresso no cartao<input name="holder" required></label>
           <label>Numero do cartao<input name="number" inputmode="numeric" autocomplete="cc-number" required></label>
           <div class="profile-address-grid">
@@ -494,7 +511,21 @@ function renderAccountPage() {
   target.querySelector("[data-back-store]").onclick = () => closeProductDetail();
   const editProfileButton = target.querySelector("[data-edit-profile]");
   if (editProfileButton) editProfileButton.onclick = openEditProfile;
+  target.querySelectorAll('.payment-option input[name="paymentPreference"]').forEach((input) => {
+    input.onchange = () => {
+      target.querySelectorAll(".payment-option").forEach((option) => option.classList.remove("active"));
+      input.closest(".payment-option").classList.add("active");
+    };
+  });
+  const showCardForm = target.querySelector("[data-show-card-form]");
   const cardForm = target.querySelector("#cardForm");
+  if (showCardForm && cardForm) {
+    showCardForm.onclick = () => {
+      cardForm.hidden = false;
+      showCardForm.hidden = true;
+      cardForm.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    };
+  }
   if (cardForm) {
     cardForm.onsubmit = (event) => {
       event.preventDefault();

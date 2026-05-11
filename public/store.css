@@ -996,6 +996,43 @@ button:disabled {
   font-size: .92rem;
 }
 
+.payment-options {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.payment-option {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.payment-option.active {
+  border-color: #121621;
+  box-shadow: 0 0 0 3px rgba(18, 22, 33, .08);
+}
+
+.payment-option input {
+  width: auto;
+}
+
+.payment-option strong,
+.payment-option small {
+  display: block;
+}
+
+.payment-option small {
+  color: var(--muted);
+  margin-top: 2px;
+}
+
 .card-form {
   padding: 12px;
   border: 1px solid var(--line);
@@ -1115,6 +1152,7 @@ button:disabled {
   .product-grid,
   .recommendation-grid,
   .detail-actions,
+  .payment-options,
   .profile-address-grid {
     grid-template-columns: 1fr;
   }
