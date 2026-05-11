@@ -628,12 +628,12 @@ function renderLeads() {
     ].filter(Boolean).join(" | ");
     return `
       <div class="row-card lead-card">
-        <strong>${lead.name || "Lead"} | ${lead.phone || "sem celular"}</strong>
+        <strong>${lead.name || "Cliente"} | ${lead.phone || "sem celular"}</strong>
         <span>${lead.email || "sem email"}${address ? ` | ${address}` : ""}</span>
         <span>Origem: ${lead.source || "Site"} | Cadastro: ${String(lead.createdAt || "").slice(0, 10)}</span>
       </div>
     `;
-  }).join("") || '<div class="row-card"><strong>Nenhum lead cadastrado.</strong><span>Cadastros feitos na loja aparecem aqui automaticamente.</span></div>';
+  }).join("") || '<div class="row-card"><strong>Nenhum cliente cadastrado.</strong><span>Perfis criados no site aparecem aqui automaticamente.</span></div>';
 }
 
 function refreshItemSelects() {
@@ -937,7 +937,7 @@ function bindTabs() {
     purchase: ["Compras", "Lance compras e atualize estoque/custo médio automaticamente."],
     sale: ["Venda", "Baixe estoque e calcule faturamento, taxas e lucro."],
     orders: ["Pedidos", "Acompanhe pedidos da loja, pagamento, separacao, envio e rastreio."],
-    leads: ["Leads", "Contatos cadastrados pelo site para venda e atendimento."],
+    leads: ["Clientes", "Perfis cadastrados pelo site para compra e atendimento."],
     history: ["Histórico", "Veja compras, vendas e movimentações de estoque."]
   };
   document.querySelectorAll(".nav").forEach((button) => {

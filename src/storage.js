@@ -700,6 +700,31 @@ async function createLead(input) {
     throw error;
   }
 
+  const existing = db.leads.find((item) => {
+    const sameEmail = email && String(item.email || "").toLowerCase() === email.toLowerCase();
+    const samePhone = phone && String(item.phone || "").replace(/\D/g, "") === phone.replace(/\D/g, "");
+    return sameEmail || samePhone;
+  });
+
+  if (existing) {
+    Object.assign(existing, {
+      name,
+      email,
+      phone,
+      zipCode: String(input.zipCode || "").trim(),
+      street: String(input.street || "").trim(),
+      number: String(input.number || "").trim(),
+      complement: String(input.complement || "").trim(),
+      neighborhood: String(input.neighborhood || "").trim(),
+      city: String(input.city || "").trim(),
+      state: String(input.state || "").trim(),
+      source: String(input.source || existing.source || "Site").trim(),
+      updatedAt: now()
+    });
+    await writeDb(db);
+    return existing;
+  }
+
   const lead = {
     id: createId("lead"),
     name,

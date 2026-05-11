@@ -171,7 +171,7 @@ function isAdminPath(url) {
   const publicApi = [
     "/api/health",
     "/api/storefront",
-    "/api/storefront/leads",
+    "/api/storefront/customers",
     "/api/storefront/checkout"
   ];
   return !publicApi.includes(url.pathname);
@@ -312,9 +312,9 @@ async function handleApi(req, res, url) {
       return sendJson(res, await createStorefrontCheckout(input), 201);
     }
 
-    if (method === "POST" && resource === "storefront" && id === "leads") {
+    if (method === "POST" && resource === "storefront" && id === "customers") {
       const input = await readBody(req);
-      return sendJson(res, await createLead(input), 201);
+      return sendJson(res, await createLead({ ...input, source: "Perfil" }), 201);
     }
 
     if (method === "GET" && resource === "summary") {

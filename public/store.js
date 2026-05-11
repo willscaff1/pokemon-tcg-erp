@@ -5,6 +5,7 @@ const state = {
   query: "",
   sort: "featured",
   detailProductId: productIdFromPath(),
+  customer: loadCustomer(),
   cart: loadCart()
 };
 
@@ -38,6 +39,23 @@ function loadCart() {
 
 function saveCart() {
   localStorage.setItem("scaff-store-cart", JSON.stringify(state.cart));
+}
+
+function loadCustomer() {
+  try {
+    return JSON.parse(localStorage.getItem("scaff-store-customer") || "null");
+  } catch {
+    return null;
+  }
+}
+
+function saveCustomer(customer) {
+  state.customer = customer;
+  if (customer) {
+    localStorage.setItem("scaff-store-customer", JSON.stringify(customer));
+  } else {
+    localStorage.removeItem("scaff-store-customer");
+  }
 }
 
 function toast(message) {
@@ -85,6 +103,21 @@ function closeCart() {
   document.getElementById("cartDrawer").classList.remove("open");
   document.getElementById("cartDrawer").setAttribute("aria-hidden", "true");
   document.getElementById("drawerBackdrop").classList.remove("open");
+}
+
+function openProfile() {
+  renderProfile();
+  document.getElementById("profileDrawer").classList.add("open");
+  document.getElementById("profileDrawer").setAttribute("aria-hidden", "false");
+  document.getElementById("drawerBackdrop").classList.add("open");
+}
+
+function closeProfile() {
+  document.getElementById("profileDrawer").classList.remove("open");
+  document.getElementById("profileDrawer").setAttribute("aria-hidden", "true");
+  if (!document.getElementById("cartDrawer").classList.contains("open")) {
+    document.getElementById("drawerBackdrop").classList.remove("open");
+  }
 }
 
 function openProductDetail(id, push = true) {
@@ -149,7 +182,6 @@ function renderProducts() {
   document.getElementById("statusMessage").hidden = isDetailOpen;
   document.getElementById("productGrid").hidden = isDetailOpen;
   document.getElementById("productDetail").hidden = !isDetailOpen;
-  document.getElementById("leadSection").hidden = isDetailOpen;
   if (isDetailOpen) {
     renderProductDetail();
     return;
@@ -286,12 +318,37 @@ function renderCart() {
   document.querySelectorAll("[data-remove]").forEach((button) => {
     button.onclick = () => removeFromCart(button.dataset.remove);
   });
+
+  const checkoutForm = document.getElementById("checkoutForm");
+  if (state.customer && checkoutForm) {
+    checkoutForm.customerName.value = state.customer.name || checkoutForm.customerName.value;
+    checkoutForm.customerEmail.value = state.customer.email || checkoutForm.customerEmail.value;
+    checkoutForm.customerPhone.value = state.customer.phone || checkoutForm.customerPhone.value;
+  }
 }
 
 function renderAll() {
   renderCategories();
   renderProducts();
   renderCart();
+  renderProfile();
+}
+
+function renderProfile() {
+  const customer = state.customer;
+  document.getElementById("profileLabel").textContent = customer ? "Perfil" : "Entrar";
+  document.getElementById("profileSubtitle").textContent = customer
+    ? `${customer.name || "Cliente"} conectado`
+    : "Entre para comprar no site";
+  document.getElementById("profileLogout").hidden = !customer;
+
+  const form = document.getElementById("profileForm");
+  if (!form || form.dataset.dirty === "true") return;
+  form.reset();
+  if (!customer) return;
+  for (const [key, value] of Object.entries(customer)) {
+    if (form.elements[key]) form.elements[key].value = value || "";
+  }
 }
 
 function addToCart(id) {
@@ -330,9 +387,14 @@ function removeFromCart(id) {
 }
 
 function bindEvents() {
+  document.getElementById("profileToggle").onclick = openProfile;
+  document.getElementById("profileClose").onclick = closeProfile;
   document.getElementById("cartToggle").onclick = openCart;
   document.getElementById("cartClose").onclick = closeCart;
-  document.getElementById("drawerBackdrop").onclick = closeCart;
+  document.getElementById("drawerBackdrop").onclick = () => {
+    closeCart();
+    closeProfile();
+  };
   document.getElementById("searchInput").oninput = (event) => {
     state.query = event.target.value;
     renderProducts();
@@ -346,19 +408,34 @@ function bindEvents() {
     renderAll();
   };
 
-  document.getElementById("leadZipCode").onblur = fillAddressFromCep;
-  document.getElementById("leadForm").onsubmit = async (event) => {
+  const profileForm = document.getElementById("profileForm");
+  profileForm.oninput = () => {
+    profileForm.dataset.dirty = "true";
+  };
+  document.getElementById("profileZipCode").onblur = fillAddressFromCep;
+  document.getElementById("profileLogout").onclick = () => {
+    saveCustomer(null);
+    profileForm.dataset.dirty = "false";
+    profileForm.reset();
+    renderProfile();
+    toast("Voce saiu do perfil.");
+  };
+  profileForm.onsubmit = async (event) => {
     event.preventDefault();
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form).entries());
 
     try {
-      await api("/api/storefront/leads", {
+      const customer = await api("/api/storefront/customers", {
         method: "POST",
         body: JSON.stringify(payload)
       });
+      saveCustomer(customer);
+      form.dataset.dirty = "false";
       form.reset();
-      toast("Cadastro realizado.");
+      renderProfile();
+      closeProfile();
+      toast("Perfil conectado.");
     } catch (error) {
       toast(error.message);
     }
@@ -371,9 +448,18 @@ function bindEvents() {
       toast("Adicione produtos ao carrinho.");
       return;
     }
+    if (!state.customer) {
+      toast("Entre no perfil para finalizar a compra.");
+      openProfile();
+      return;
+    }
 
     const form = event.currentTarget;
     const payload = Object.fromEntries(new FormData(form).entries());
+    payload.customerName = state.customer.name || payload.customerName;
+    payload.customerEmail = state.customer.email || payload.customerEmail;
+    payload.customerPhone = state.customer.phone || payload.customerPhone;
+    payload.customerId = state.customer.id;
     payload.items = entries.map(({ product, quantity }) => ({
       productId: product.id,
       quantity
@@ -405,7 +491,7 @@ async function fillAddressFromCep(event) {
     const data = await response.json();
     if (!response.ok || data.erro) throw new Error("CEP nao encontrado.");
 
-    const form = document.getElementById("leadForm");
+    const form = document.getElementById("profileForm");
     form.street.value = data.logradouro || form.street.value;
     form.neighborhood.value = data.bairro || form.neighborhood.value;
     form.city.value = data.localidade || form.city.value;

@@ -79,10 +79,12 @@ button, a { -webkit-tap-highlight-color: transparent; }
   align-items: center;
 }
 
+.profile-button,
 .cart-button,
 .checkout-button,
 .cart-head button,
-.qty-button {
+.qty-button,
+.secondary-button {
   min-height: 40px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -94,6 +96,7 @@ button, a { -webkit-tap-highlight-color: transparent; }
   text-decoration: none;
 }
 
+.profile-button,
 .cart-button,
 .checkout-button {
   display: inline-flex;
@@ -104,6 +107,37 @@ button, a { -webkit-tap-highlight-color: transparent; }
   background: var(--accent);
   color: #fff;
   box-shadow: 0 10px 22px rgba(210, 38, 48, .22);
+}
+
+.profile-button {
+  border-color: #c5cfdd;
+  background: #fff;
+  color: var(--ink);
+  box-shadow: none;
+}
+
+.profile-icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  border: 2px solid currentColor;
+  border-radius: 50%;
+}
+
+.profile-icon::after {
+  content: "";
+  position: absolute;
+  left: -5px;
+  right: -5px;
+  bottom: -9px;
+  height: 10px;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 999px 999px 0 0;
+}
+
+.profile-button:hover {
+  border-color: #121621;
 }
 
 .cart-button:hover,
@@ -768,38 +802,54 @@ button:disabled {
   line-height: 1.35;
 }
 
-.lead-section {
+.profile-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  z-index: 30;
   display: grid;
-  grid-template-columns: minmax(220px, .7fr) 1.3fr;
-  gap: 18px;
-  align-items: start;
-  margin-top: 28px;
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--panel);
-  box-shadow: var(--shadow);
+  grid-template-rows: auto 1fr;
+  width: min(420px, 100%);
+  height: 100vh;
+  background: #fff;
+  box-shadow: -20px 0 60px rgba(15, 23, 42, .24);
+  transform: translateX(105%);
+  transition: transform .2s ease;
 }
 
-.lead-section h2 {
-  margin: 0 0 8px;
-  font-size: 1.35rem;
+.profile-drawer.open {
+  transform: translateX(0);
 }
 
-.lead-section p {
-  margin: 0;
-  color: var(--muted);
-}
-
-.lead-form {
+.profile-form {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-content: start;
+  gap: 10px;
+  overflow: auto;
+  padding: 16px 18px 18px;
+}
+
+.profile-form label {
+  display: grid;
+  gap: 6px;
+  color: #344054;
+  font-size: .84rem;
+  font-weight: 800;
+}
+
+.profile-address-grid {
+  display: grid;
+  grid-template-columns: 1fr 120px;
   gap: 10px;
 }
 
-.lead-form .wide,
-.lead-form button {
-  grid-column: 1 / -1;
+.secondary-button {
+  background: #fff;
+  color: var(--ink);
+}
+
+.secondary-button:hover {
+  border-color: #121621;
 }
 
 .drawer-backdrop {
@@ -839,8 +889,7 @@ button:disabled {
 @media (max-width: 980px) {
   .hero,
   .toolbar,
-  .detail-layout,
-  .lead-section {
+  .detail-layout {
     grid-template-columns: 1fr;
   }
 
@@ -869,7 +918,7 @@ button:disabled {
   .product-grid,
   .recommendation-grid,
   .detail-actions,
-  .lead-form {
+  .profile-address-grid {
     grid-template-columns: 1fr;
   }
 
